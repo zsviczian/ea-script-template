@@ -1,0 +1,33 @@
+{
+  "name": "ea-script-template",
+  "version": "1.0.0",
+  "description": "Professional starter template for building ExcalidrawAutomate scripts for Obsidian Excalidraw",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\"",
+    "lint:fix": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && npm run lint",
+    "package": "npm run build && node scripts/package.mjs",
+    "new-script": "tsx scripts/new-script.ts",
+    "sync-refs": "node scripts/sync-refs.mjs"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.5.0"
+  },
+  "keywords": ["obsidian", "excalidraw", "excalidraw-automate", "script-template"],
+  "author": "",
+  "license": "MIT"
+}
