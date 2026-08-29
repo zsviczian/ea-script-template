@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="color-palette-picker preview">
+  <rect width="800" height="450" fill="#f8fafc" />
+  <rect x="56" y="56" width="688" height="338" rx="16" fill="#ffffff" stroke="#cbd5e1" />
+  <text x="90" y="130" fill="#111827" font-size="34" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">Color palette picker</text>
+  <rect x="92" y="168" width="96" height="96" rx="12" fill="#e03131" />
+  <rect x="208" y="168" width="96" height="96" rx="12" fill="#1971c2" />
+  <rect x="324" y="168" width="96" height="96" rx="12" fill="#2b8a3e" />
+  <rect x="440" y="168" width="96" height="96" rx="12" fill="#f08c00" />
+  <text x="90" y="318" fill="#6b7280" font-size="20" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">build/color-palette-picker/color-palette-picker.md</text>
+</svg>

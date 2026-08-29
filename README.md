@@ -1,113 +1,118 @@
 # ea-script-template
 
-A professional starter project for building high-quality [ExcalidrawAutomate](https://zsviczian.github.io/obsidian-excalidraw-plugin/) scripts for [Obsidian Excalidraw](https://github.com/zsviczian/obsidian-excalidraw-plugin).
+Professional workspace template for building and maintaining multiple ExcalidrawAutomate scripts in one repository.
 
----
+## Template or Fork?
 
-## Quick Start (3 steps)
+Use this repository as a template when:
+
+- you want one workspace containing many scripts
+- you want shared lint/build/tooling and shared utilities
+- you are building script PRs for obsidian-excalidraw-plugin
+
+Fork this repository when:
+
+- you want to publish your own long-lived script workspace publicly
+- you need to customize lint/build/release policy while retaining this baseline
+
+Create one repo per script only when strict isolation is required.
+
+## Quick start
 
 ```bash
-# 1. Clone and install dependencies
-git clone https://github.com/zsviczian/ea-script-template.git my-ea-script
-cd my-ea-script
+git clone https://github.com/zsviczian/ea-script-template.git my-ea-scripts
+cd my-ea-scripts
 npm install
-
-# 2. Build the distributable script
 npm run build
-
-# 3. Copy dist/main.js into your Obsidian vault's script folder and run it
 ```
 
----
+Build output lands in a shared folder with one subfolder per script:
 
-## Project Structure
-
+```text
+build/{script-slug}/{script-slug}.md
+build/{script-slug}/{script-slug}.svg
 ```
+
+Script extension semantics in Obsidian Excalidraw (since plugin 2.27.0):
+
+- both `.js` and `.md` script files are supported
+- if both extensions exist for the same script name, `.md` takes precedence
+- this template emits `.md` so scripts remain easy to view and edit in Obsidian's markdown editor
+
+Generated scripts start with a purpose comment, followed by editable top-level `UPPER_SNAKE_CASE` configuration constants, then the bundled script.
+
+## Recommended workspace layout
+
+```text
 ea-script-template/
 ├── src/
-│   ├── main.ts               ← orchestrator only (keep thin)
-│   ├── features/             ← one file per feature
-│   ├── ui/                   ← modal and sidepanel helpers
-│   ├── core/                 ← shared utilities (notices, element helpers, settings)
-│   ├── constants/            ← all strings and numeric config
-│   └── types/                ← script-local TypeScript types + ea.d.ts stubs
-├── examples/
-│   ├── minimal-starter/      ← smallest possible EA script
-│   └── color-palette-picker/ ← realistic multi-step example
+│   ├── scripts/
+│   │   ├── minimal-starter/
+│   │   │   ├── main.ts
+│   │   │   └── preview.svg
+│   │   ├── color-palette-picker/
+│   │   │   ├── main.ts
+│   │   │   └── preview.svg
+│   │   └── script-n/
+│   │       ├── main.ts
+│   │       └── preview.svg
+│   ├── sharedUtils/
+│   │   └── notice.ts
+│   └── types/
+│       └── ea.d.ts
+├── build/                  # generated, one folder per script slug
+├── release/                # packaged output copied from build/
 ├── scripts/
-│   ├── new-script.ts         ← scaffolder: npm run new-script
-│   ├── package.mjs           ← copies dist → release/
-│   └── sync-refs.mjs         ← future: sync API types from plugin repo
-├── dist/                     ← generated build output (git-ignored)
-├── release/                  ← packaged artefact ready to ship
-├── esbuild.config.mjs
-├── eslint.config.mjs
-├── tsconfig.json
-└── .prettierrc
+│   ├── new-script.ts
+│   ├── package.mjs
+│   └── sync-refs.mjs
+├── AGENTS.md
+├── CLAUDE.md
+└── .ai/
+	└── excalidraw-automate/
 ```
 
----
+## Commands
 
-## Available Commands
+| Command                                    | Description                                                                                                                                                                                        |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run build`                            | Discovers `src/scripts/*/main.ts` and emits `build/{slug}/{slug}.md` plus `build/{slug}/{slug}.svg`                                                                                                |
+| `npm run package`                          | Copies all built script artefacts into `release/{slug}/`                                                                                                                                           |
+| `npm run new-script -- --name "My Script"` | Creates `src/scripts/{slug}/main.ts` and `preview.svg`                                                                                                                                             |
+| `npm run check`                            | Typecheck + lint                                                                                                                                                                                   |
+| `npm run sync-refs`                        | Copies the full generated skill snapshot from sibling `obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate/` into `.ai/excalidraw-automate/` and renames reference scripts to `.js` |
 
-| Command | Description |
-|---------|-------------|
-| `npm run build` | Compiles `src/main.ts` → `dist/main.js` (IIFE bundle) |
-| `npm run lint` | Runs ESLint across all TypeScript source |
-| `npm run lint:fix` | Auto-fixes lint issues |
-| `npm run format` | Formats code with Prettier |
-| `npm run typecheck` | TypeScript type-check without emitting files |
-| `npm run check` | Runs typecheck **and** lint (use before committing) |
-| `npm run package` | Builds and copies the artefact to `release/` |
-| `npm run new-script` | Generates a new feature module from a template |
-| `npm run sync-refs` | (Placeholder) Syncs API type stubs from the plugin repo |
+## Publishing model
 
-### Scaffold a new feature
+This template supports multiple scripts in one workspace, but publication is still script-by-script.
 
-```bash
-npm run new-script -- --name "My Awesome Feature"
-# Creates: src/features/my-awesome-feature.ts
-```
+For each script PR to obsidian-excalidraw-plugin:
 
----
+- copy `build/{slug}/{slug}.md` into `ea-scripts/{Script Name}.md`
+- copy or export preview image using `scripts-{slug}.{ext}` naming
+- update `ea-scripts/index-new.md` manually
+- update `ea-scripts/directory-info.json` including `mtime` for updates
 
-## Writing Your Script
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for full details.
 
-1. **Keep `src/main.ts` thin.** It should only import feature modules, initialise EA, and delegate work. Aim for < 40 lines.
+## Agent auto-discovery
 
-2. **One feature per file** in `src/features/`. Export a single `run*` async function that accepts `(ea, api)`.
+This repository includes agent guidance surfaces:
 
-3. **No magic strings.** Put every UI-visible string in `src/constants/strings.ts`.
+- [AGENTS.md](./AGENTS.md) for cross-agent behavior and workflow constraints
+- [CLAUDE.md](./CLAUDE.md) for implementation architecture notes
+- [.ai/excalidraw-automate/SKILL.md](./.ai/excalidraw-automate/SKILL.md) plus local references and script examples synchronized from plugin outputs
 
-4. **Document every function** with a JSDoc comment (enforced by ESLint).
+## Development dependencies
 
-5. **Use the workbench.** Call `ea.reset()`, stage elements with `ea.add*()`, then commit with `ea.addElementsToView()`. Never mutate the live scene array directly without going through the API.
+The template includes dev dependencies for:
 
-See [AUTHORING_GUIDE.md](./AUTHORING_GUIDE.md) for deeper guidance.
+- Obsidian typings/runtime interfaces via `obsidian`
+- Excalidraw type surface via `@zsviczian/excalidraw`
+- Direct plugin repository access via `obsidian-excalidraw-plugin` Git dependency for reference workflows
 
----
-
-## Publishing to obsidian-excalidraw-plugin
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full workflow.
-
----
-
-## Image Naming Policy
-
-Preview images must follow this naming convention:
-
-```
-scripts-{slug}.{ext}
-```
-
-- `slug` — lowercase, hyphenated, only `a-z`, `0-9`, and `-`
-- `ext` — one of: `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`
-
-**Examples:** `scripts-color-palette-picker.png`, `scripts-my-script-v2.svg`
-
----
+These are for authoring and type/reference workflows, not runtime script execution inside Obsidian.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).

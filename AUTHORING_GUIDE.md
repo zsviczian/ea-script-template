@@ -2,6 +2,26 @@
 
 This guide covers best practices for writing high-quality EA scripts using this template.
 
+## Workspace model
+
+This repository is designed to host multiple scripts in one workspace.
+
+- Put each script in `src/scripts/{slug}/`.
+- Keep script entrypoint in `src/scripts/{slug}/main.ts`.
+- Store per-script preview in `src/scripts/{slug}/preview.svg`.
+- Keep reusable helpers in `src/sharedUtils/`.
+- Build outputs are emitted to `build/{slug}/{slug}.md` and `build/{slug}/{slug}.svg`.
+
+Script file extension behavior in Obsidian Excalidraw (since 2.27.0):
+
+- both `.js` and `.md` script files are supported
+- if both are present for the same script name, `.md` is preferred
+- this template intentionally emits `.md` so scripts are easier to inspect/edit in Obsidian's markdown editor
+
+The build moves top-level `UPPER_SNAKE_CASE` `const` declarations ahead of the bundled script so users can find and edit configuration quickly. Keep those configuration initializers self-contained; ordinary lower-camel-case constants remain inside the bundle.
+
+Use `npm run new-script -- --name "My Script"` to scaffold a new script folder.
+
 ---
 
 ## 1. The Immutable Scene Workflow (EA Workbench)
@@ -30,11 +50,11 @@ await ea.addElementsToView(false, true);
 
 ## 2. ea vs Excalidraw API vs window.ExcalidrawLib
 
-| Object | When to use |
-|---|---|
-| `ea` | Adding new elements, showing prompts, reading/writing script settings, accessing the workbench |
-| `ea.getExcalidrawAPI()` | Reading or bulk-updating the **existing** scene (`getSceneElements`, `updateScene`) |
-| `window.ExcalidrawLib` | Low-level geometry helpers (`intersectElementWithLine`, `getCommonBounds`, etc.) — only when `ea` and the React API do not expose what you need |
+| Object                  | When to use                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ea`                    | Adding new elements, showing prompts, reading/writing script settings, accessing the workbench                                                  |
+| `ea.getExcalidrawAPI()` | Reading or bulk-updating the **existing** scene (`getSceneElements`, `updateScene`)                                                             |
+| `window.ExcalidrawLib`  | Low-level geometry helpers (`intersectElementWithLine`, `getCommonBounds`, etc.) — only when `ea` and the React API do not expose what you need |
 
 As a rule of thumb: reach for `ea` first, then the API, and only touch `ExcalidrawLib` as a last resort.
 
@@ -45,19 +65,22 @@ As a rule of thumb: reach for `ea` first, then the API, and only touch `Excalidr
 ### Simple text input
 
 ```ts
-import { askText } from "../ui/modal";
+import { showNotice } from "../../sharedUtils/notice";
 
-const label = await askText("Enter a label", "my label", "");
-if (!label) return; // user cancelled
+const label = await utils.inputPrompt("Enter a label", "my label", "");
+if (!label) {
+  showNotice("Cancelled");
+  return;
+}
 ```
 
 ### Choice list
 
 ```ts
-import { askChoice } from "../ui/modal";
+const options = ["Red", "Green", "Blue"];
+const choice = await utils.suggester(options, options);
 
-const colour = await askChoice("Pick a colour", ["Red", "Green", "Blue"]);
-if (!colour) return;
+if (!choice) return;
 ```
 
 ### Custom React sidepanel
@@ -71,25 +94,24 @@ For complex UI (multi-field forms, previews) you can render a React component in
 **Script settings** are persisted in Obsidian's plugin data across sessions:
 
 ```ts
-import { loadSettings, saveSettings } from "../core/settings";
-
-const DEFAULT_SETTINGS = { strokeWidth: 2, colour: "#000000" };
-const settings = loadSettings(DEFAULT_SETTINGS);
+const settings = ea.getScriptSettings() ?? {};
+if (!settings.strokeWidth) settings.strokeWidth = 2;
+if (!settings.colour) settings.colour = "#000000";
 
 // ... user interaction ...
 
 settings.colour = newColour;
-await saveSettings(settings);
+await ea.setScriptSettings(settings);
 ```
 
-**customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later:
+**customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later. Prefer the helper so existing metadata from other scripts is preserved:
 
 ```ts
-// Writing
-(el as any).customData = { myScript: { version: 1, role: "header" } };
+// Writing (safe merge)
+ea.addAppendUpdateCustomData(el.id, { myScript: { version: 1, role: "header" } });
 
 // Reading
-const role = (el.customData as any)?.myScript?.role;
+const role = el.customData?.myScript?.role;
 ```
 
 ---

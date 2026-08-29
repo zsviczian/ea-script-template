@@ -1,11 +1,10 @@
 #!/usr/bin/env tsx
 /**
  * @file new-script.ts
- * @overview Script scaffolder — generates a new feature module from a template.
+ * @overview Script scaffolder — generates a new script workspace under src/scripts/{slug}.
  *
  * Usage:
  *   npm run new-script -- --name "My Feature"
- *   npm run new-script -- --name "My Feature" --out src/features
  */
 
 import { writeFileSync, existsSync, mkdirSync } from "fs";
@@ -18,7 +17,7 @@ import { join } from "path";
 /**
  * Parses a named CLI argument.
  *
- * @param flag  Argument name without leading dashes (e.g. "name").
+ * @param flag  Argument name without leading dashes (for example "name").
  * @returns     The string value, or null if not present.
  */
 function getArg(flag: string): string | null {
@@ -60,57 +59,115 @@ function toPascalCase(slug: string): string {
     .join("");
 }
 
+/**
+ * Escapes XML entities for safe SVG text rendering.
+ *
+ * @param input  Raw text.
+ * @returns      Escaped XML-safe text.
+ */
+function escapeXml(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // ---------------------------------------------------------------------------
 // Template
 // ---------------------------------------------------------------------------
 
 /**
- * Returns the feature module source file content for the given name.
+ * Returns the script entrypoint source content for the given name.
  *
  * @param displayName  Human-readable script name.
  * @param slug         Hyphenated identifier.
  * @param funcName     PascalCase prefix for the exported run function.
  */
-function featureTemplate(displayName: string, slug: string, funcName: string): string {
+// eslint-disable-next-line max-lines-per-function -- Template emitters are long string factories by design.
+function scriptMainTemplate(displayName: string, slug: string, funcName: string): string {
   const date = new Date().toISOString().slice(0, 10);
   return `/**
- * @file ${slug}.ts
+ * @file main.ts
  * @overview
- *   ${displayName} — describe what this feature does in one or two sentences.
+ *   ${displayName} script entrypoint.
+ *
+ *   Folder: src/scripts/${slug}
+ *   Build output: build/${slug}/${slug}.md
  *
  * @author  Your Name
  * @version 1.0.0
  * @created ${date}
  */
 
-import { showNotice } from "../core/notice";
-import { MSG } from "../constants/strings";
-import type { FeatureResult } from "../types/script-types";
+import { showNotice } from "../../sharedUtils/notice";
 
 /**
- * Runs the ${displayName} feature.
+ * Runs the ${displayName} script.
  *
  * @param ea   The ExcalidrawAutomate instance.
  * @param _api The live Excalidraw React API.
- * @returns    A FeatureResult describing the outcome.
+ * @returns    Promise resolving when execution completes.
  */
 export async function run${funcName}(
   ea: ExcalidrawAutomate,
   _api: ExcalidrawAPI,
-): Promise<FeatureResult> {
+): Promise<void> {
   const selected = ea.getViewSelectedElements();
 
   if (selected.length === 0) {
-    showNotice(MSG.NO_SELECTION);
-    return { success: false, message: MSG.NO_SELECTION };
+    showNotice("Please select at least one element.");
+    return;
   }
 
   // TODO: implement ${displayName}
+  // Suggested structure:
+  // - Keep reusable logic in src/sharedUtils/
+  // - Keep script-local constants/types under this folder
+  // - Commit scene changes via await ea.addElementsToView(...)
 
-  showNotice(MSG.SUCCESS);
-  return { success: true };
+  showNotice("Done. Replace this with your real workflow.");
 }
+
+/**
+ * Script-engine entrypoint.
+ */
+async function main(): Promise<void> {
+  if (!ea.verifyMinAppVersion("2.0.0")) {
+    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    return;
+  }
+
+  const api = ea.getExcalidrawAPI();
+  if (!api) {
+    showNotice("Could not obtain Excalidraw API.");
+    return;
+  }
+
+  await run${funcName}(ea, api);
+}
+
+void main();
 `;
+}
+
+/**
+ * Returns a starter SVG preview for the script.
+ *
+ * @param displayName  Human-readable script name.
+ * @param slug         Hyphenated identifier.
+ */
+function previewTemplate(displayName: string, slug: string): string {
+  const safeTitle = escapeXml(displayName);
+  const safeSlug = escapeXml(slug);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" role="img" aria-label="${safeSlug} preview">
+  <rect width="800" height="450" fill="#f6f8fb" />
+  <rect x="52" y="52" width="696" height="346" rx="18" fill="#ffffff" stroke="#c6ceda" />
+  <text x="88" y="138" fill="#1f2937" font-size="36" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">${safeTitle}</text>
+  <text x="88" y="188" fill="#4b5563" font-size="22" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">scripts-${safeSlug}.svg</text>
+  <text x="88" y="228" fill="#6b7280" font-size="20" font-family="ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">Replace this preview with a real screenshot before publishing.</text>
+</svg>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -119,26 +176,26 @@ export async function run${funcName}(
 
 const name = getArg("name");
 if (!name) {
-  console.error("Usage: npm run new-script -- --name \"My Feature\" [--out src/features]");
+  console.error('Usage: npm run new-script -- --name "My Script"');
   process.exit(1);
 }
 
-const outDir = getArg("out") ?? "src/features";
 const slug = toSlug(name);
 const funcName = toPascalCase(slug);
-const outPath = join(process.cwd(), outDir, `${slug}.ts`);
+const scriptDir = join(process.cwd(), "src", "scripts", slug);
+const mainPath = join(scriptDir, "main.ts");
+const previewPath = join(scriptDir, "preview.svg");
 
-if (existsSync(outPath)) {
-  console.error(`File already exists: ${outPath}`);
+if (existsSync(scriptDir)) {
+  console.error(`Script directory already exists: ${scriptDir}`);
   process.exit(1);
 }
 
-if (!existsSync(join(process.cwd(), outDir))) {
-  mkdirSync(join(process.cwd(), outDir), { recursive: true });
-}
+mkdirSync(scriptDir, { recursive: true });
+writeFileSync(mainPath, scriptMainTemplate(name, slug, funcName), "utf8");
+writeFileSync(previewPath, previewTemplate(name, slug), "utf8");
 
-writeFileSync(outPath, featureTemplate(name, slug, funcName), "utf8");
-
-console.log(`✅  Created ${outPath}`);
-console.log(`   Export: run${funcName}(ea, api)`);
-console.log(`   Import it in src/main.ts to wire it up.`);
+console.log(`Created script workspace: ${scriptDir}`);
+console.log(`- Entry point: ${mainPath}`);
+console.log(`- Preview: ${previewPath}`);
+console.log(`- Exported runner: run${funcName}(ea, api)`);

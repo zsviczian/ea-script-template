@@ -2,7 +2,7 @@
 node_modules/
 
 # Build output
-dist/
+build/
 
 # Release artefact (keep in repo only if you want to version it)
 release/
