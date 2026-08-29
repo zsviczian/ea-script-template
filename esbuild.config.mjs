@@ -15,6 +15,7 @@ import ts from "typescript";
 const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
 const scriptsRoot = join(process.cwd(), "src", "scripts");
 const outRoot = join(process.cwd(), "build");
+const buildVersion = new Date().toISOString();
 
 /**
  * @param {string} scriptSlug
@@ -37,31 +38,9 @@ function placeholderPreviewSvg(scriptSlug) {
 </svg>`;
 }
 
-/**
- * @param {string} slug
- * @returns {string}
- */
-function titleFromSlug(slug) {
-  return slug
-    .split("-")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-/**
- * @param {string} sourceText
- * @returns {string}
- */
-function extractOverview(sourceText) {
-  const match = sourceText.match(/@overview(?:[ \t]*\r?\n[ \t]*\*[ \t]*)?([^\r\n]*)/m);
-  if (!match) {
-    return "Generated ExcalidrawAutomate script bundle.";
-  }
-
-  const summary = match[1]?.trim();
-
-  return summary || "Generated ExcalidrawAutomate script bundle.";
+/** Escapes block-comment terminators so README text cannot expose executable code. */
+function escapeBlockComment(content) {
+  return content.replaceAll("*/", "* /");
 }
 
 /**
@@ -121,26 +100,19 @@ function moveConfigurationConstants(sourceText) {
 
 /**
  * @param {object} args
- * @param {string} args.slug
- * @param {string} args.overview
+ * @param {string} args.readme
+ * @param {string} args.buildVersion
  * @param {string} args.constantsJs
  * @param {string} args.bundleJs
  * @returns {string}
  */
-function createScriptMarkdown({ slug, overview, constantsJs, bundleJs }) {
-  const title = titleFromSlug(slug);
-  const lines = [
-    "/*",
-    `Script: ${title}`,
-    `Purpose: ${overview}`,
-    "",
-    "This script is emitted as .md so it remains editable in Obsidian's markdown editor.",
-    "If both .md and .js exist for the same script name, Obsidian Excalidraw prefers .md.",
-    "",
-    "```javascript",
-    "*/",
-    "",
-  ];
+function createScriptMarkdown({ readme, buildVersion, constantsJs, bundleJs }) {
+  const lines = ["/*"];
+  const readmeContent = escapeBlockComment(readme).trim();
+  if (readmeContent) {
+    lines.push(readmeContent, "");
+  }
+  lines.push(`Build version: ${buildVersion}`, "", "```javascript", "*/", "");
 
   if (constantsJs.trim()) {
     lines.push("// Configuration constants");
@@ -184,7 +156,8 @@ for (const slug of scriptSlugs) {
   mkdirSync(scriptOutDir, { recursive: true });
 
   const sourceText = readFileSync(entryPoint, "utf8");
-  const overview = extractOverview(sourceText);
+  const readmePath = join(scriptDir, "README.md");
+  const readme = existsSync(readmePath) ? readFileSync(readmePath, "utf8") : "";
   const { constantsSource, bundleSource } = moveConfigurationConstants(sourceText);
   const constDeclarationsJs = constantsSource
     ? (
@@ -220,8 +193,8 @@ for (const slug of scriptSlugs) {
   }
 
   const markdownScript = createScriptMarkdown({
-    slug,
-    overview,
+    readme,
+    buildVersion,
     constantsJs: constDeclarationsJs,
     bundleJs: `/* EA Script — ${slug} | ${pkg.name} v${pkg.version} */\n${bundleFile.text}\n/* end of bundle */`,
   });

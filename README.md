@@ -39,7 +39,7 @@ Script extension semantics in Obsidian Excalidraw (since plugin 2.27.0):
 - if both extensions exist for the same script name, `.md` takes precedence
 - this template emits `.md` so scripts remain easy to view and edit in Obsidian's markdown editor
 
-Generated scripts start with a purpose comment, followed by editable top-level `UPPER_SNAKE_CASE` configuration constants, then the bundled script.
+Generated scripts start with the script's local `README.md` and a UTC build timestamp, followed by editable top-level `UPPER_SNAKE_CASE` configuration constants and then the bundled script. If a script has no `README.md`, the documentation section is left empty.
 
 ## Recommended workspace layout
 
