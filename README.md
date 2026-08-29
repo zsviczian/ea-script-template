@@ -70,7 +70,7 @@ ea-script-template/
 | `npm run package` | Copies all built script artefacts into `release/{slug}/` |
 | `npm run new-script -- --name "My Script"` | Creates `src/scripts/{slug}/main.ts` and `preview.svg` |
 | `npm run check` | Typecheck + lint |
-| `npm run sync-refs` | Refreshes local AI/bootstrap references from plugin outputs (when implemented) |
+| `npm run sync-refs` | Copies the full generated skill snapshot from sibling `obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate/` into `.ai/excalidraw-automate/` |
 
 ## Publishing model
 
@@ -89,7 +89,7 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for full details.
 This repository includes agent guidance surfaces:
 - [AGENTS.md](./AGENTS.md) for cross-agent behavior and workflow constraints
 - [CLAUDE.md](./CLAUDE.md) for implementation architecture notes
-- [.ai/excalidraw-automate/SKILL.md](./.ai/excalidraw-automate/SKILL.md) as a lightweight skill bootstrap routing to canonical plugin docs
+- [.ai/excalidraw-automate/SKILL.md](./.ai/excalidraw-automate/SKILL.md) plus local references and script examples synchronized from plugin outputs
 
 ## Development dependencies
 

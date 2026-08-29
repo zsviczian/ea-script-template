@@ -1,7 +1,7 @@
-# ea-script-template bootstrap
+# ExcalidrawAutomate skill snapshot
 
-This workspace is kept in sync by the Obsidian Excalidraw plugin docs generator.
+This directory is synchronized from:
+/Users/zsviczian/GitHub/obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate
 
-Use the canonical plugin-repo skill and reference set first:
-
-- https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/docs/AITrainingData/excalidraw-automate/SKILL.md
+Canonical upstream source:
+https://github.com/zsviczian/obsidian-excalidraw-plugin/tree/master/docs/AITrainingData/excalidraw-automate

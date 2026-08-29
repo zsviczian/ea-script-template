@@ -57,19 +57,22 @@ As a rule of thumb: reach for `ea` first, then the API, and only touch `Excalidr
 ### Simple text input
 
 ```ts
-import { askText } from "../ui/modal";
+import { showNotice } from "../../sharedUtils/notice";
 
-const label = await askText("Enter a label", "my label", "");
-if (!label) return; // user cancelled
+const label = await utils.inputPrompt("Enter a label", "my label", "");
+if (!label) {
+  showNotice("Cancelled");
+  return;
+}
 ```
 
 ### Choice list
 
 ```ts
-import { askChoice } from "../ui/modal";
+const options = ["Red", "Green", "Blue"];
+const choice = await utils.suggester(options, options);
 
-const colour = await askChoice("Pick a colour", ["Red", "Green", "Blue"]);
-if (!colour) return;
+if (!choice) return;
 ```
 
 ### Custom React sidepanel
@@ -83,15 +86,14 @@ For complex UI (multi-field forms, previews) you can render a React component in
 **Script settings** are persisted in Obsidian's plugin data across sessions:
 
 ```ts
-import { loadSettings, saveSettings } from "../core/settings";
-
-const DEFAULT_SETTINGS = { strokeWidth: 2, colour: "#000000" };
-const settings = loadSettings(DEFAULT_SETTINGS);
+const settings = ea.getScriptSettings() ?? {};
+if (!settings.strokeWidth) settings.strokeWidth = 2;
+if (!settings.colour) settings.colour = "#000000";
 
 // ... user interaction ...
 
 settings.colour = newColour;
-await saveSettings(settings);
+await ea.setScriptSettings(settings);
 ```
 
 **customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later:

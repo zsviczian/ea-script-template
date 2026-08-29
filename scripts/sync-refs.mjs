@@ -10,23 +10,36 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
 } from "fs";
 import { join, resolve } from "path";
 
 const templateRoot = process.cwd();
 const pluginRoot = resolve(templateRoot, "..", "obsidian-excalidraw-plugin");
 const sourceRoot = join(pluginRoot, "docs", "AITrainingData", "excalidraw-automate");
-const sourceRefs = join(sourceRoot, "references");
 const targetRoot = join(templateRoot, ".ai", "excalidraw-automate");
-const targetRefs = join(targetRoot, "references");
 
-const requiredFiles = [
-  [join(sourceRoot, "SKILL.md"), join(targetRoot, "SKILL.md")],
-  [join(sourceRefs, "type-definitions.md"), join(targetRefs, "type-definitions.md")],
-  [join(sourceRefs, "api-usage-index.md"), join(targetRefs, "api-usage-index.md")],
-  [join(sourceRefs, "excalidraw-lib-functions.md"), join(targetRefs, "excalidraw-lib-functions.md")],
-  [join(sourceRefs, "startup-scripts.md"), join(targetRefs, "startup-scripts.md")],
-];
+/**
+ * Recursively copies one directory tree into another.
+ *
+ * @param {string} sourceDir
+ * @param {string} targetDir
+ */
+function copyDirectory(sourceDir, targetDir) {
+  mkdirSync(targetDir, { recursive: true });
+  const entries = readdirSync(sourceDir, { withFileTypes: true });
+  for (const entry of entries) {
+    const src = join(sourceDir, entry.name);
+    const dst = join(targetDir, entry.name);
+    if (entry.isDirectory()) {
+      copyDirectory(src, dst);
+      continue;
+    }
+    copyFileSync(src, dst);
+  }
+}
 
 if (!existsSync(sourceRoot)) {
   console.error("sync-refs failed: plugin reference directory not found.");
@@ -34,15 +47,20 @@ if (!existsSync(sourceRoot)) {
   process.exit(1);
 }
 
-mkdirSync(targetRefs, { recursive: true });
+rmSync(targetRoot, { recursive: true, force: true });
+copyDirectory(sourceRoot, targetRoot);
+writeFileSync(
+  join(targetRoot, "README.md"),
+  `# ExcalidrawAutomate skill snapshot
 
-for (const [src, dest] of requiredFiles) {
-  if (!existsSync(src)) {
-    console.error(`sync-refs failed: missing source file ${src}`);
-    process.exit(1);
-  }
-  copyFileSync(src, dest);
-}
+This directory is synchronized from:
+${sourceRoot}
 
-console.log(`Synced references from ${sourceRoot}`);
-console.log(`Updated local bootstrap under ${targetRoot}`);
+Canonical upstream source:
+https://github.com/zsviczian/obsidian-excalidraw-plugin/tree/master/docs/AITrainingData/excalidraw-automate
+`,
+  "utf8",
+);
+
+console.log(`Synced full skill snapshot from ${sourceRoot}`);
+console.log(`Updated local workspace skill package at ${targetRoot}`);

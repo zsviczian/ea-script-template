@@ -18,13 +18,13 @@
     "sync-refs": "node scripts/sync-refs.mjs"
   },
   "devDependencies": {
-    "@zsviczian/excalidraw": "^0.18.0",
+    "@zsviczian/excalidraw": "^0.18.129",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "esbuild": "^0.24.0",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
-    "obsidian": "^1.8.10",
+    "obsidian": "^1.13.1",
     "obsidian-excalidraw-plugin": "github:zsviczian/obsidian-excalidraw-plugin",
     "prettier": "^3.0.0",
     "tsx": "^4.0.0",
