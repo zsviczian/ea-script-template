@@ -10,10 +10,14 @@ Thank you for wanting to contribute an EA script to the [obsidian-excalidraw-plu
 
 ```bash
 npm run check   # typecheck + lint
-npm run build   # produces build/{slug}/{slug}.js and build/{slug}/{slug}.svg
+npm run build   # produces build/{slug}/{slug}.md and build/{slug}/{slug}.svg
 ```
 
-Load the target `build/{slug}/{slug}.js` in your Obsidian vault via Excalidraw -> Script Engine and verify it works end-to-end.
+Load the target `build/{slug}/{slug}.md` in your Obsidian vault via Excalidraw -> Script Engine and verify it works end-to-end.
+
+Since obsidian-excalidraw-plugin 2.27.0, both `.js` and `.md` script files are supported.
+If both are present for the same script name, `.md` takes precedence.
+The `.md` format is recommended because it is easy to inspect and edit using Obsidian's markdown editor.
 
 ### Step 2 - Add the script file
 
@@ -23,15 +27,12 @@ Copy your final script into the plugin repo:
 ea-scripts/{Your Script Name}.md
 ```
 
-The `.md` file wraps the script in a fenced code block:
+The build output already includes the script metadata comment and fenced code block wrapper.
+Copy it as-is to preserve formatting:
 
-````md
-## Your Script Name
-
-```javascript
-// paste the contents of build/{slug}/{slug}.js here
+```bash
+cp build/{slug}/{slug}.md ../obsidian-excalidraw-plugin/ea-scripts/{Your Script Name}.md
 ```
-````
 
 ### Step 3 - Add a preview image
 

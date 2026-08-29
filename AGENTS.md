@@ -9,7 +9,7 @@ Treat it as a script portfolio repo, not a single-script starter.
 
 - Each script lives under src/scripts/{slug}/.
 - Each script has at least main.ts and preview.svg.
-- Build output is shared under build/{slug}/{slug}.js and build/{slug}/{slug}.svg.
+- Build output is shared under build/{slug}/{slug}.md and build/{slug}/{slug}.svg.
 - Shared helpers belong under src/sharedUtils/.
 
 ## Publishing expectations

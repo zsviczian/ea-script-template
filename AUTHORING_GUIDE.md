@@ -10,7 +10,15 @@ This repository is designed to host multiple scripts in one workspace.
 - Keep script entrypoint in `src/scripts/{slug}/main.ts`.
 - Store per-script preview in `src/scripts/{slug}/preview.svg`.
 - Keep reusable helpers in `src/sharedUtils/`.
-- Build outputs are emitted to `build/{slug}/{slug}.js` and `build/{slug}/{slug}.svg`.
+- Build outputs are emitted to `build/{slug}/{slug}.md` and `build/{slug}/{slug}.svg`.
+
+Script file extension behavior in Obsidian Excalidraw (since 2.27.0):
+
+- both `.js` and `.md` script files are supported
+- if both are present for the same script name, `.md` is preferred
+- this template intentionally emits `.md` so scripts are easier to inspect/edit in Obsidian's markdown editor
+
+The build moves top-level `UPPER_SNAKE_CASE` `const` declarations ahead of the bundled script so users can find and edit configuration quickly. Keep those configuration initializers self-contained; ordinary lower-camel-case constants remain inside the bundle.
 
 Use `npm run new-script -- --name "My Script"` to scaffold a new script folder.
 
@@ -42,11 +50,11 @@ await ea.addElementsToView(false, true);
 
 ## 2. ea vs Excalidraw API vs window.ExcalidrawLib
 
-| Object | When to use |
-|---|---|
-| `ea` | Adding new elements, showing prompts, reading/writing script settings, accessing the workbench |
-| `ea.getExcalidrawAPI()` | Reading or bulk-updating the **existing** scene (`getSceneElements`, `updateScene`) |
-| `window.ExcalidrawLib` | Low-level geometry helpers (`intersectElementWithLine`, `getCommonBounds`, etc.) — only when `ea` and the React API do not expose what you need |
+| Object                  | When to use                                                                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ea`                    | Adding new elements, showing prompts, reading/writing script settings, accessing the workbench                                                  |
+| `ea.getExcalidrawAPI()` | Reading or bulk-updating the **existing** scene (`getSceneElements`, `updateScene`)                                                             |
+| `window.ExcalidrawLib`  | Low-level geometry helpers (`intersectElementWithLine`, `getCommonBounds`, etc.) — only when `ea` and the React API do not expose what you need |
 
 As a rule of thumb: reach for `ea` first, then the API, and only touch `ExcalidrawLib` as a last resort.
 

@@ -10,7 +10,7 @@
 ## Build behavior
 
 - npm run build discovers all src/scripts/*/main.ts entrypoints
-- each script is bundled to build/{slug}/{slug}.js
+- each script is bundled to build/{slug}/{slug}.md
 - each script emits build/{slug}/{slug}.svg (copied from preview.svg or generated placeholder)
 
 ## Release behavior

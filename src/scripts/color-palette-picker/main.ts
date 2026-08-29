@@ -2,7 +2,7 @@
  * @file main.ts
  * @overview Color palette picker script entrypoint example.
  *
- * Build output: build/color-palette-picker/color-palette-picker.js
+ * Build output: build/color-palette-picker/color-palette-picker.md
  */
 
 import { showNotice } from "../../sharedUtils/notice";

@@ -1,7 +1,6 @@
 # ExcalidrawAutomate skill snapshot
 
-This directory is synchronized from:
-/Users/zsviczian/GitHub/obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate
-
-Canonical upstream source:
+This directory is synchronized from the plugin repository:
 https://github.com/zsviczian/obsidian-excalidraw-plugin/tree/master/docs/AITrainingData/excalidraw-automate
+
+Update source content by running npm run doc in the plugin repository.

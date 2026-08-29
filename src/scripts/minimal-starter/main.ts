@@ -2,7 +2,7 @@
  * @file main.ts
  * @overview Minimal starter script entrypoint.
  *
- * Build output: build/minimal-starter/minimal-starter.js
+ * Build output: build/minimal-starter/minimal-starter.md
  */
 
 import { showNotice } from "../../sharedUtils/notice";

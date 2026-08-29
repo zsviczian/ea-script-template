@@ -94,7 +94,7 @@ function scriptMainTemplate(displayName: string, slug: string, funcName: string)
  *   ${displayName} script entrypoint.
  *
  *   Folder: src/scripts/${slug}
- *   Build output: build/${slug}/${slug}.js
+ *   Build output: build/${slug}/${slug}.md
  *
  * @author  Your Name
  * @version 1.0.0
@@ -176,7 +176,7 @@ function previewTemplate(displayName: string, slug: string): string {
 
 const name = getArg("name");
 if (!name) {
-  console.error("Usage: npm run new-script -- --name \"My Script\"");
+  console.error('Usage: npm run new-script -- --name "My Script"');
   process.exit(1);
 }
 

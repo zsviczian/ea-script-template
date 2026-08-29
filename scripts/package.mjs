@@ -4,13 +4,7 @@
  *   Run via: npm run package
  */
 
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  rmSync,
-} from "fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "fs";
 import { join } from "path";
 
 const buildDir = join(process.cwd(), "build");
@@ -39,11 +33,11 @@ for (const slug of scriptDirs) {
   const targetDir = join(releaseDir, slug);
   mkdirSync(targetDir, { recursive: true });
 
-  const scriptJs = join(sourceDir, `${slug}.js`);
+  const scriptMd = join(sourceDir, `${slug}.md`);
   const previewSvg = join(sourceDir, `${slug}.svg`);
 
-  if (existsSync(scriptJs)) {
-    copyFileSync(scriptJs, join(targetDir, `${slug}.js`));
+  if (existsSync(scriptMd)) {
+    copyFileSync(scriptMd, join(targetDir, `${slug}.md`));
   }
   if (existsSync(previewSvg)) {
     copyFileSync(previewSvg, join(targetDir, `${slug}.svg`));

@@ -6,5 +6,5 @@
   <rect x="208" y="168" width="96" height="96" rx="12" fill="#1971c2" />
   <rect x="324" y="168" width="96" height="96" rx="12" fill="#2b8a3e" />
   <rect x="440" y="168" width="96" height="96" rx="12" fill="#f08c00" />
-  <text x="90" y="318" fill="#6b7280" font-size="20" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">build/color-palette-picker/color-palette-picker.js</text>
+  <text x="90" y="318" fill="#6b7280" font-size="20" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace">build/color-palette-picker/color-palette-picker.md</text>
 </svg>
