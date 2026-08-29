@@ -2,6 +2,18 @@
 
 This guide covers best practices for writing high-quality EA scripts using this template.
 
+## Workspace model
+
+This repository is designed to host multiple scripts in one workspace.
+
+- Put each script in `src/scripts/{slug}/`.
+- Keep script entrypoint in `src/scripts/{slug}/main.ts`.
+- Store per-script preview in `src/scripts/{slug}/preview.svg`.
+- Keep reusable helpers in `src/sharedUtils/`.
+- Build outputs are emitted to `build/{slug}/{slug}.js` and `build/{slug}/{slug}.svg`.
+
+Use `npm run new-script -- --name "My Script"` to scaffold a new script folder.
+
 ---
 
 ## 1. The Immutable Scene Workflow (EA Workbench)
