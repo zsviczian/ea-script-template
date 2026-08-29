@@ -96,14 +96,14 @@ settings.colour = newColour;
 await ea.setScriptSettings(settings);
 ```
 
-**customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later:
+**customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later. Prefer the helper so existing metadata from other scripts is preserved:
 
 ```ts
-// Writing
-(el as any).customData = { myScript: { version: 1, role: "header" } };
+// Writing (safe merge)
+ea.addAppendUpdateCustomData(el.id, { myScript: { version: 1, role: "header" } });
 
 // Reading
-const role = (el.customData as any)?.myScript?.role;
+const role = el.customData?.myScript?.role;
 ```
 
 ---
