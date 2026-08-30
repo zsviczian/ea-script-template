@@ -110,7 +110,7 @@ import { run${funcName} } from "./run";
 async function main(): Promise<void> {
   const t = create${funcName}Translator(ea.obsidian.moment.locale());
 
-  if (!ea.verifyMinAppVersion("2.0.0")) {
+  if (!ea.verifyMinimumPluginVersion("2.0.0")) {
     new Notice(t("requiresVersion"));
     return;
   }

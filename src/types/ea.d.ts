@@ -16,8 +16,28 @@ declare interface ExcalidrawAutomate {
   /** Obsidian APIs exposed to ExcalidrawAutomate scripts. */
   readonly obsidian: typeof import("obsidian");
 
-  /** Returns true when the running plugin version meets the minimum. */
+  /** Returns true when the running Obsidian app version meets the minimum. */
   verifyMinAppVersion(version: string): boolean;
+
+  /** Returns true when the running Excalidraw plugin version meets the minimum. */
+  verifyMinimumPluginVersion(version: string): boolean;
+
+  /** The drawing explicitly targeted by view-bound EA operations. */
+  targetView: ExcalidrawView | null;
+
+  /**
+   * Selects a view for EA operations.
+   *
+   * Omit `view` or pass `"auto"` to select a sensible default. Pass an
+   * Excalidraw view to bind explicitly. Pass `null` to clear `targetView`.
+   */
+  setView(
+    view?: ExcalidrawView | "auto" | "first" | "active" | null,
+    show?: boolean,
+  ): ExcalidrawView | null;
+
+  /** Requests autostart permission with an optional script-specific explanation. */
+  registerAutostart(message?: string): Promise<"allow" | "deny" | "pending">;
 
   /** Returns the live Excalidraw React API for the active canvas. */
   getExcalidrawAPI(): ExcalidrawAPI | null;
@@ -28,14 +48,15 @@ declare interface ExcalidrawAutomate {
   /**
    * Copies staged elements to the live scene.
    *
-   * @param repositionToCursor                 When true, elements are placed at the cursor position.
-   * @param finalizeWhenFallbackIsAvailable    When true, the scene is finalised even if the
-   *                                           canvas API falls back to a compatibility path.
+   * Saving is enabled by default. Await the result before assuming a persistent mutation completed.
    */
   addElementsToView(
     repositionToCursor?: boolean,
-    finalizeWhenFallbackIsAvailable?: boolean,
-  ): Promise<void>;
+    save?: boolean,
+    newElementsOnTop?: boolean,
+    shouldRestoreElements?: boolean,
+    captureUpdate?: "NEVER" | "EVENTUALLY" | "IMMEDIATELY",
+  ): Promise<boolean>;
 
   /** The currently selected element IDs on the canvas. */
   getViewSelectedElements(): ExcalidrawElement[];
@@ -102,6 +123,21 @@ declare interface ExcalidrawElement {
   [key: string]: unknown;
 }
 
+/** Minimal view identity used by template lifecycle examples. */
+declare interface ExcalidrawView {
+  readonly file?: { readonly path: string };
+}
+
+declare type ScriptExecutionSource =
+  "manual" | "autostart" | "sidepanel-restore" | "drawing-onload";
+
+declare interface ScriptUtils {
+  /** The script file currently being executed. */
+  readonly scriptFile: import("obsidian").TFile;
+  /** Why the script engine invoked this execution. */
+  readonly executionSource: ScriptExecutionSource;
+}
+
 declare interface ExcalidrawAPI {
   getSceneElements(): readonly ExcalidrawElement[];
   getAppState(): Record<string, unknown>;
@@ -118,6 +154,9 @@ declare interface ExcalidrawAPI {
 
 /** The ExcalidrawAutomate instance for the currently active canvas. */
 declare const ea: ExcalidrawAutomate;
+
+/** Utilities and execution context injected by the Script Engine. */
+declare const utils: ScriptUtils;
 
 /** Obsidian's Notice class — available globally in the plugin context. */
 declare class Notice {
