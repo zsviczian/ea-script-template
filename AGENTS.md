@@ -66,6 +66,20 @@ When preparing a script for obsidian-excalidraw-plugin:
   `startLineEditor()`; do not re-read selection state when the element is known.
 - Await `ea.addElementsToView(..., true)` when the mutation must be saved. Avoid
   unpublished `ExcalidrawView` save methods unless no public EA operation fits.
+- Treat EA as a stateful workbench: `ea.clear()`, read scene elements, use
+  `ea.copyViewElementsToEAforEditing()` to preserve their IDs, edit the
+  workbench copies, then either commit persistent changes once with
+  `await ea.addElementsToView()` or use them for a temporary EA operation and
+  discard them with `ea.clear()` without committing.
+- `ea.cloneElement()` and `ea.cloneElements()` deliberately create new IDs and
+  are only for genuine duplicates. Never use them to edit an existing element,
+  normalize read-only data, or prepare a temporary preview override.
+- Do not overlap independent async operations through one EA workbench. Await
+  the operation, then clear the workbench before starting another transaction.
+- Treat `createViewSVG({ elementsOverride })` as a complete replacement for the
+  exported scene elements, never as an additive list or a patch by ID. Include
+  every element that should appear in the SVG; for temporary scene changes,
+  copying the complete export set into EA is usually the simplest safe path.
 
 ## Auto-discovery files
 
