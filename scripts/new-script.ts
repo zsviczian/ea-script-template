@@ -85,7 +85,6 @@ function escapeXml(input: string): string {
  * @param slug         Hyphenated identifier.
  * @param funcName     PascalCase prefix for the exported run function.
  */
-// eslint-disable-next-line max-lines-per-function -- Template emitters are long string factories by design.
 function scriptMainTemplate(displayName: string, slug: string, funcName: string): string {
   const date = new Date().toISOString().slice(0, 10);
   return `/**
@@ -102,53 +101,142 @@ function scriptMainTemplate(displayName: string, slug: string, funcName: string)
  */
 
 import { showNotice } from "../../sharedUtils/notice";
-
-/**
- * Runs the ${displayName} script.
- *
- * @param ea   The ExcalidrawAutomate instance.
- * @param _api The live Excalidraw React API.
- * @returns    Promise resolving when execution completes.
- */
-export async function run${funcName}(
-  ea: ExcalidrawAutomate,
-  _api: ExcalidrawAPI,
-): Promise<void> {
-  const selected = ea.getViewSelectedElements();
-
-  if (selected.length === 0) {
-    showNotice("Please select at least one element.");
-    return;
-  }
-
-  // TODO: implement ${displayName}
-  // Suggested structure:
-  // - Keep reusable logic in src/sharedUtils/
-  // - Keep script-local constants/types under this folder
-  // - Commit scene changes via await ea.addElementsToView(...)
-
-  showNotice("Done. Replace this with your real workflow.");
-}
+import { create${funcName}Translator } from "./lang";
+import { run${funcName} } from "./run";
 
 /**
  * Script-engine entrypoint.
  */
 async function main(): Promise<void> {
+  const t = create${funcName}Translator(ea.obsidian.moment.locale());
+
   if (!ea.verifyMinAppVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new Notice(t("requiresVersion"));
     return;
   }
 
   const api = ea.getExcalidrawAPI();
   if (!api) {
-    showNotice("Could not obtain Excalidraw API.");
+    showNotice(t("apiUnavailable"));
     return;
   }
 
-  await run${funcName}(ea, api);
+  await run${funcName}(ea, api, t);
 }
 
 void main();
+`;
+}
+
+/** Returns the import-safe runner used by the script and its tests. */
+function scriptRunnerTemplate(displayName: string, funcName: string): string {
+  return `import { showNotice } from "../../sharedUtils/notice";
+import type { ${funcName}Translator } from "./lang";
+
+/** Runs ${displayName}. */
+export async function run${funcName}(
+  ea: ExcalidrawAutomate,
+  _api: ExcalidrawAPI,
+  t: ${funcName}Translator,
+): Promise<void> {
+  const selected = ea.getViewSelectedElements();
+  if (selected.length === 0) {
+    showNotice(t("selectElement"));
+    return;
+  }
+
+  // TODO: implement ${displayName}.
+  showNotice(t("done"));
+}
+`;
+}
+
+/** Returns the English source-of-truth catalog. */
+function englishCatalogTemplate(funcName: string): string {
+  return `export const en = {
+  requiresVersion: "This script requires Excalidraw 2.0.0 or newer.",
+  apiUnavailable: "Could not obtain Excalidraw API.",
+  selectElement: "Please select at least one element.",
+  done: "Done. Replace this with your real workflow.",
+} as const;
+
+export type ${funcName}TranslationKey = keyof typeof en;
+`;
+}
+
+/** Returns an intentionally partial catalog that falls back to English. */
+function partialCatalogTemplate(localeIdentifier: string, funcName: string): string {
+  return `import type { ${funcName}TranslationKey } from "./en";
+
+// Add reviewed translations here; missing keys fall back to English.
+export const ${localeIdentifier} = {} satisfies Partial<Record<${funcName}TranslationKey, string>>;
+`;
+}
+
+/** Returns the script-local catalog registry. */
+function catalogIndexTemplate(funcName: string): string {
+  return `import {
+  createTranslator,
+  type TranslationCatalog,
+  type Translator,
+} from "../../../sharedUtils/i18n";
+import { de } from "./de";
+import { en, type ${funcName}TranslationKey } from "./en";
+import { es } from "./es";
+import { fr } from "./fr";
+import { ru } from "./ru";
+import { zhCn } from "./zh-cn";
+
+const CATALOGS = { en, de, es, fr, ru, "zh-cn": zhCn } satisfies Record<
+  string,
+  TranslationCatalog<${funcName}TranslationKey>
+>;
+
+export type ${funcName}Translator = Translator<${funcName}TranslationKey>;
+
+/** Creates this script's locale-aware translator. */
+export function create${funcName}Translator(locale: string): ${funcName}Translator {
+  return createTranslator(locale, CATALOGS);
+}
+`;
+}
+
+/** Returns a small behavior test for the generated runner. */
+function testTemplate(funcName: string): string {
+  return `import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { create${funcName}Translator } from "../lang";
+import { run${funcName} } from "../run";
+
+describe("${funcName}", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("asks for a selection when the scene selection is empty", async () => {
+    const notices: string[] = [];
+    vi.stubGlobal("Notice", class {
+      constructor(message: string) { notices.push(message); }
+    });
+    const fakeEa = { getViewSelectedElements: () => [] } as unknown as ExcalidrawAutomate;
+
+    await run${funcName}(fakeEa, {} as ExcalidrawAPI, create${funcName}Translator("en"));
+
+    expect(notices).toEqual(["Please select at least one element."]);
+  });
+});
+`;
+}
+
+/** Returns starter documentation for the generated script. */
+function readmeTemplate(displayName: string): string {
+  return `# ${displayName}
+
+Describe what the script does and how to use it.
+
+## Development
+
+- Put executable bootstrap logic in \`main.ts\` and testable behavior in \`run.ts\`.
+- Put UI strings in \`lang/en.ts\`; add reviewed translations to the other catalogs.
+- Put script-owned tests in \`__tests__/*.test.ts\` and run \`npm test\`.
 `;
 }
 
@@ -184,18 +272,36 @@ const slug = toSlug(name);
 const funcName = toPascalCase(slug);
 const scriptDir = join(process.cwd(), "src", "scripts", slug);
 const mainPath = join(scriptDir, "main.ts");
+const runPath = join(scriptDir, "run.ts");
+const readmePath = join(scriptDir, "README.md");
 const previewPath = join(scriptDir, "preview.svg");
+const langDir = join(scriptDir, "lang");
+const testsDir = join(scriptDir, "__tests__");
 
 if (existsSync(scriptDir)) {
   console.error(`Script directory already exists: ${scriptDir}`);
   process.exit(1);
 }
 
-mkdirSync(scriptDir, { recursive: true });
+mkdirSync(langDir, { recursive: true });
+mkdirSync(testsDir, { recursive: true });
 writeFileSync(mainPath, scriptMainTemplate(name, slug, funcName), "utf8");
+writeFileSync(runPath, scriptRunnerTemplate(name, funcName), "utf8");
+writeFileSync(readmePath, readmeTemplate(name), "utf8");
 writeFileSync(previewPath, previewTemplate(name, slug), "utf8");
+writeFileSync(join(langDir, "en.ts"), englishCatalogTemplate(funcName), "utf8");
+writeFileSync(join(langDir, "de.ts"), partialCatalogTemplate("de", funcName), "utf8");
+writeFileSync(join(langDir, "es.ts"), partialCatalogTemplate("es", funcName), "utf8");
+writeFileSync(join(langDir, "fr.ts"), partialCatalogTemplate("fr", funcName), "utf8");
+writeFileSync(join(langDir, "ru.ts"), partialCatalogTemplate("ru", funcName), "utf8");
+writeFileSync(join(langDir, "zh-cn.ts"), partialCatalogTemplate("zhCn", funcName), "utf8");
+writeFileSync(join(langDir, "index.ts"), catalogIndexTemplate(funcName), "utf8");
+writeFileSync(join(testsDir, "run.test.ts"), testTemplate(funcName), "utf8");
 
 console.log(`Created script workspace: ${scriptDir}`);
 console.log(`- Entry point: ${mainPath}`);
+console.log(`- Testable runner: ${runPath}`);
+console.log(`- Locales: ${langDir}`);
+console.log(`- Tests: ${testsDir}`);
 console.log(`- Preview: ${previewPath}`);
 console.log(`- Exported runner: run${funcName}(ea, api)`);

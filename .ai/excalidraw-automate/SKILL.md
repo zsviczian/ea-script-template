@@ -134,6 +134,22 @@ To keep this training file concise, large external type definitions are not incl
     *   To permanently remove an element from the scene, set `element.isDeleted = true`.
 *   **Image Handling:** When dealing with image elements, use `ea.getViewFileForImageElement(imageElement)` to get the corresponding `TFile` from the Obsidian vault. This is necessary for any logic that needs to read or manipulate the source image file.
 
+#### **6.1. Tests in a Multi-Script Workspace**
+
+*   **Tests are part of implementation:** Add or update focused automated tests for behavior changes. When fixing a regression, reproduce it with a failing test first when practical.
+*   **Co-locate by ownership:** Put script tests in `src/scripts/{slug}/__tests__/*.test.ts` and shared utility tests in `src/sharedUtils/__tests__/*.test.ts`. Do not maintain a separate root test tree that mirrors dozens of scripts.
+*   **Never import executable entrypoints:** `main.ts` runs immediately against the globals injected by Obsidian. Keep it as a thin bootstrap and move testable orchestration to `run.ts` or another import-safe module.
+*   **Use the universal runner:** Use Vitest. Run a focused suite while iterating, then run `npm run check`; the repository gate includes TypeScript, ESLint, and all test suites. Use `npm run test:watch` for continuous feedback.
+*   **Test behavior, not bundler details:** Prefer pure domain functions and narrow fakes for `ea`, the Excalidraw API, Obsidian globals, timers, and DOM boundaries. Build and perform an Obsidian smoke test for integration behavior automation cannot prove.
+
+#### **6.2. Per-Script Localization**
+
+*   **Catalogs belong to the script:** Store strings in `src/scripts/{slug}/lang/`, with one file per locale. Never create one language catalog shared across unrelated scripts.
+*   **English defines the contract:** `lang/en.ts` is the typed source of truth. Maintain `de.ts`, `es.ts`, `fr.ts`, `ru.ts`, and `zh-cn.ts`; incomplete reviewed catalogs may rely on English fallback.
+*   **Use the shared helper:** Register catalogs in `lang/index.ts` with `createTranslator`. Resolve the locale with `ea.obsidian.moment.locale()` and pass the translator into import-safe script logic.
+*   **Interpolate by name:** Use placeholders such as `{count}` instead of string concatenation. Do not use dynamically constructed regular expressions for interpolation.
+*   **Keep UI copy out of logic:** Add user-visible strings to the script catalog rather than embedding them in controllers, runners, or helpers.
+
 #### **7. SVG and Image Export Approaches**
 Generating images (SVG/PNG) requires specific approaches depending on the context. Follow these three rules strictly to avoid performance issues and missing assets:
 1. **Exporting elements currently in the EA workbench:** Use `await ea.createSVG(null, ...)` or `await ea.createPNG(null, ...)` (passing `null` as the `templatePath`).

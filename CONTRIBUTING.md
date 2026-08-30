@@ -9,7 +9,7 @@ Thank you for wanting to contribute an EA script to the [obsidian-excalidraw-plu
 ### Step 1 - Build and test your script locally
 
 ```bash
-npm run check   # typecheck + lint
+npm run check   # typecheck + lint + all Vitest suites
 npm run build   # produces build/{slug}/{slug}.md and build/{slug}/{slug}.svg
 ```
 
@@ -81,8 +81,10 @@ Update `ea-scripts/directory-info.json` in the same PR:
 Before opening a PR, confirm:
 
 - [ ] `npm run check` passes with no errors
+- [ ] Behavior changes include focused co-located Vitest coverage
 - [ ] Every function has a JSDoc comment
 - [ ] No UI strings are hard-coded inside script logic
+- [ ] English and applicable translated strings live in the script's `lang/` folder
 - [ ] Script tested in Obsidian against the latest Excalidraw plugin version
 - [ ] Preview image follows the naming policy
 
@@ -92,7 +94,8 @@ Before opening a PR, confirm:
 
 ```bash
 npm run new-script -- --name "My Script"    # scaffold src/scripts/{slug}/
+npm run test:watch                          # focused development feedback
 npm run build                               # compile
-npm run check                               # typecheck + lint
+npm run check                               # typecheck + lint + all tests
 npm run package                             # copies build/ -> release/
 ```

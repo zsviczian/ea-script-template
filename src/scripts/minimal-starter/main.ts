@@ -1,42 +1,25 @@
-/**
- * @file main.ts
- * @overview Minimal starter script entrypoint.
- *
- * Build output: build/minimal-starter/minimal-starter.md
- */
-
 import { showNotice } from "../../sharedUtils/notice";
-
-/**
- * Minimal starter runner.
- *
- * @param ea   ExcalidrawAutomate instance.
- * @param _api Excalidraw API for the active view.
- */
-export async function runMinimalStarter(
-  ea: ExcalidrawAutomate,
-  _api: ExcalidrawAPI,
-): Promise<void> {
-  const selected = ea.getViewSelectedElements();
-  showNotice(`minimal-starter: selected ${selected.length} element(s).`);
-}
+import { createMinimalStarterTranslator } from "./lang";
+import { runMinimalStarter } from "./run";
 
 /**
  * Script-engine entrypoint.
  */
 async function main(): Promise<void> {
+  const t = createMinimalStarterTranslator(ea.obsidian.moment.locale());
+
   if (!ea.verifyMinAppVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new Notice(t("requiresVersion"));
     return;
   }
 
   const api = ea.getExcalidrawAPI();
   if (!api) {
-    showNotice("minimal-starter: could not obtain Excalidraw API.");
+    showNotice(t("apiUnavailable"));
     return;
   }
 
-  await runMinimalStarter(ea, api);
+  await runMinimalStarter(ea, api, t);
 }
 
 void main();

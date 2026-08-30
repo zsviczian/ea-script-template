@@ -48,15 +48,23 @@ ea-script-template/
 ├── src/
 │   ├── scripts/
 │   │   ├── minimal-starter/
+│   │   │   ├── __tests__/run.test.ts
+│   │   │   ├── lang/{en,de,es,fr,ru,zh-cn}.ts
+│   │   │   ├── lang/index.ts
 │   │   │   ├── main.ts
+│   │   │   ├── run.ts
 │   │   │   └── preview.svg
 │   │   ├── color-palette-picker/
+│   │   │   ├── __tests__/run.test.ts
+│   │   │   ├── lang/
 │   │   │   ├── main.ts
+│   │   │   ├── run.ts
 │   │   │   └── preview.svg
 │   │   └── script-n/
 │   │       ├── main.ts
 │   │       └── preview.svg
 │   ├── sharedUtils/
+│   │   ├── i18n.ts
 │   │   └── notice.ts
 │   └── types/
 │       └── ea.d.ts
@@ -78,9 +86,40 @@ ea-script-template/
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run build`                            | Discovers `src/scripts/*/main.ts` and emits `build/{slug}/{slug}.md` plus `build/{slug}/{slug}.svg`                                                                                                |
 | `npm run package`                          | Copies all built script artefacts into `release/{slug}/`                                                                                                                                           |
-| `npm run new-script -- --name "My Script"` | Creates `src/scripts/{slug}/main.ts` and `preview.svg`                                                                                                                                             |
-| `npm run check`                            | Typecheck + lint                                                                                                                                                                                   |
+| `npm run new-script -- --name "My Script"` | Creates a complete script workspace with bootstrap, runner, language catalogs, test, README, and preview                                                                                           |
+| `npm test`                                 | Runs every co-located `src/**/__tests__/**/*.test.ts` suite once with Vitest                                                                                                                       |
+| `npm run test:watch`                       | Re-runs affected Vitest suites while developing                                                                                                                                                    |
+| `npm run check`                            | Typecheck + lint + all tests                                                                                                                                                                       |
 | `npm run sync-refs`                        | Copies the full generated skill snapshot from sibling `obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate/` into `.ai/excalidraw-automate/` and renames reference scripts to `.js` |
+
+## Testing convention
+
+Tests are co-located with the code they own:
+
+- script tests: `src/scripts/{slug}/__tests__/*.test.ts`
+- shared utility tests: `src/sharedUtils/__tests__/*.test.ts`
+
+This keeps each script portable as the workspace grows and avoids maintaining a
+second, mirrored directory tree. Vitest discovers all suites through one root
+configuration. Keep `main.ts` as the executable bootstrap and put behavior in
+import-safe modules such as `run.ts`; importing `main.ts` in a test would execute
+the script against missing Obsidian globals.
+
+Run a focused suite while iterating with
+`npx vitest run src/scripts/{slug}/__tests__`, then run `npm run check` before
+committing.
+
+## Localization convention
+
+Every script owns its strings under `src/scripts/{slug}/lang/`. `en.ts` is the
+typed source of truth; `de.ts`, `es.ts`, `fr.ts`, `ru.ts`, and `zh-cn.ts` contain
+language-specific catalogs. `lang/index.ts` registers them with the shared
+translator. Lookup tries the exact locale, its base language, then English, so a
+partial reviewed catalog is safer than copying unreviewed English text.
+
+Use named placeholders (`{count}`) for dynamic values and obtain the runtime
+locale with `ea.obsidian.moment.locale()`. UI strings belong in the catalog, not
+in script logic.
 
 ## Publishing model
 

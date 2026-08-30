@@ -2,7 +2,10 @@
 
 ## Project structure
 
-- src/scripts/{slug}/main.ts: script entrypoint
+- src/scripts/{slug}/main.ts: executable script bootstrap; do not import in tests
+- src/scripts/{slug}/run.ts: import-safe orchestration suitable for tests
+- src/scripts/{slug}/**tests**/: co-located Vitest suites
+- src/scripts/{slug}/lang/: per-language catalogs and typed translator registry
 - src/scripts/{slug}/preview.svg: preview asset source
 - src/sharedUtils/: shared utilities used across scripts
 - src/types/ea.d.ts: ambient script-engine globals and API stubs
@@ -23,6 +26,14 @@
 - keep main.ts focused on orchestration
 - keep reusable functions in src/sharedUtils
 - prefer typed helpers and avoid runtime dependencies not available in Obsidian
+- keep English strings in each script's lang/en.ts and use the shared i18n helper
+
+## Test behavior
+
+- npm test runs every `src/**/__tests__/**/*.test.ts` suite
+- npm run test:watch provides the development watch loop
+- npm run check is the universal pre-commit gate: types + lint + tests
+- tests live beside their owning script or shared utility, not in a mirrored root tree
 
 ## References
 

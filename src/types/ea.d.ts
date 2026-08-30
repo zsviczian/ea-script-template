@@ -13,6 +13,9 @@
 // ---------------------------------------------------------------------------
 
 declare interface ExcalidrawAutomate {
+  /** Obsidian APIs exposed to ExcalidrawAutomate scripts. */
+  readonly obsidian: typeof import("obsidian");
+
   /** Returns true when the running plugin version meets the minimum. */
   verifyMinAppVersion(version: string): boolean;
 
@@ -29,7 +32,10 @@ declare interface ExcalidrawAutomate {
    * @param finalizeWhenFallbackIsAvailable    When true, the scene is finalised even if the
    *                                           canvas API falls back to a compatibility path.
    */
-  addElementsToView(repositionToCursor?: boolean, finalizeWhenFallbackIsAvailable?: boolean): Promise<void>;
+  addElementsToView(
+    repositionToCursor?: boolean,
+    finalizeWhenFallbackIsAvailable?: boolean,
+  ): Promise<void>;
 
   /** The currently selected element IDs on the canvas. */
   getViewSelectedElements(): ExcalidrawElement[];
@@ -41,18 +47,10 @@ declare interface ExcalidrawAutomate {
   setScriptSettings(settings: Record<string, unknown>): Promise<void>;
 
   /** Shows a native Obsidian input prompt modal. */
-  inputPrompt(
-    header: string,
-    placeholder?: string,
-    value?: string,
-  ): Promise<string | null>;
+  inputPrompt(header: string, placeholder?: string, value?: string): Promise<string | null>;
 
   /** Shows a native Obsidian suggestion modal. */
-  suggestionPrompt(
-    header: string,
-    displayItems: string[],
-    hint?: string,
-  ): Promise<string | null>;
+  suggestionPrompt(header: string, displayItems: string[], hint?: string): Promise<string | null>;
 
   // Element creation helpers
   addRect(topX: number, topY: number, width: number, height: number): string;
