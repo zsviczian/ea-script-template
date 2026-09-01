@@ -67,6 +67,29 @@ declare interface ExcalidrawAutomate {
   /** The currently selected element IDs on the canvas. */
   getViewSelectedElements(): ExcalidrawElement[];
 
+  /** Gets the immutable elements in the current target view. */
+  getViewElements(): readonly ExcalidrawElement[];
+
+  /** Returns elements whose rendered bounds intersect an area. */
+  getElementsIntersectionArea(
+    elements: readonly ExcalidrawElement[],
+    area: SceneArea,
+    options?: ElementsInAreaOptions,
+  ): ExcalidrawElement[];
+
+  /** Backward-compatible alias for `getElementsIntersectionArea()`. */
+  getElementsInArea(
+    elements: readonly ExcalidrawElement[],
+    area: SceneArea,
+    options?: ElementsInAreaOptions,
+  ): ExcalidrawElement[];
+
+  /** Exports the target view, optionally restricted to an exact scene area. */
+  createViewSVG(options?: ViewSVGExportOptions): Promise<SVGSVGElement>;
+
+  /** Rasterizes the target view, optionally restricted to an exact scene area. */
+  createViewPNG(options?: ViewPNGExportOptions): Promise<Blob>;
+
   /** Gets the current script's settings object from Obsidian data. */
   getScriptSettings(): Record<string, unknown>;
 
@@ -101,6 +124,47 @@ declare interface ElementStyle {
   fontFamily: 1 | 2 | 3 | 4;
   textAlign: "left" | "center" | "right";
   verticalAlign: "top" | "middle" | "bottom";
+}
+
+declare interface SceneArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  id?: string;
+}
+
+declare interface ElementsInAreaOptions {
+  margin?: number;
+  includeMarkerFrames?: boolean;
+  includeBoundElements?: boolean;
+}
+
+declare type ViewExportArea = SceneArea & ElementsInAreaOptions;
+
+declare interface ViewImageExportOptions {
+  withBackground?: boolean;
+  theme?: "light" | "dark";
+  frameRendering?: {
+    enabled: boolean;
+    name: boolean;
+    outline: boolean;
+    clip: boolean;
+  };
+  padding?: number;
+  selectedOnly?: boolean;
+  embedScene?: boolean;
+  /** Complete replacement export set; it is not merged with the view scene. */
+  elementsOverride?: readonly ExcalidrawElement[];
+  exportArea?: ViewExportArea;
+}
+
+declare interface ViewSVGExportOptions extends ViewImageExportOptions {
+  skipInliningFonts?: boolean;
+}
+
+declare interface ViewPNGExportOptions extends ViewImageExportOptions {
+  scale?: number;
 }
 
 declare interface TextFormatting {
