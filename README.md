@@ -127,10 +127,15 @@ in script logic.
   `verifyMinAppVersion()` only for Obsidian application requirements.
 - Use `ea.setView()` for automatic view selection, `ea.setView(view)` for an
   explicit binding, and `ea.setView(null)` to represent an unbound sidepanel.
-- Branch on `utils.executionSource` when autostart/restore executions should
-  only register lifecycle behavior while manual invocation performs the action.
+- Branch on `utils.executionSource` when automatic executions should only
+  register lifecycle behavior while manual invocation performs the action.
+  The trigger values are `manual`, `plugin-startup`, `view-autostart`,
+  `sidepanel-restore`, `sidepanel-reload`, and `drawing-onload`.
 - Use `ea.registerAutostart(message)` to explain what autostart registers. The
   message appears between the permission question and permission-management hint.
+- Use `ea.registerCleanup(cleanup)` for external listeners, timers, observers,
+  and subscriptions. The callback runs when the EA instance that registered it
+  is destroyed; the returned function unregisters it without running it.
 - Element-action providers receive an icon name; custom DOM buttons should use
   `ea.obsidian.getIcon()`.
 - Prefer awaited EA mutation/save operations over direct unpublished view APIs.

@@ -39,6 +39,12 @@ declare interface ExcalidrawAutomate {
   /** Requests autostart permission with an optional script-specific explanation. */
   registerAutostart(message?: string): Promise<"allow" | "deny" | "pending">;
 
+  /**
+   * Registers synchronous cleanup owned by this EA instance.
+   * @returns A function that unregisters the callback without running it.
+   */
+  registerCleanup(cleanup: () => void): () => void;
+
   /** Returns the live Excalidraw React API for the active canvas. */
   getExcalidrawAPI(): ExcalidrawAPI | null;
 
@@ -129,12 +135,17 @@ declare interface ExcalidrawView {
 }
 
 declare type ScriptExecutionSource =
-  "manual" | "autostart" | "sidepanel-restore" | "drawing-onload";
+  | "manual"
+  | "plugin-startup"
+  | "view-autostart"
+  | "sidepanel-restore"
+  | "sidepanel-reload"
+  | "drawing-onload";
 
 declare interface ScriptUtils {
   /** The script file currently being executed. */
   readonly scriptFile: import("obsidian").TFile;
-  /** Why the script engine invoked this execution. */
+  /** The trigger for this invocation, independent of compilation-cache reuse. */
   readonly executionSource: ScriptExecutionSource;
 }
 

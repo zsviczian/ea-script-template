@@ -89,7 +89,38 @@ For complex UI (multi-field forms, previews) you can render a React component in
 
 ---
 
-## 4. Script Settings and customData Best Practices
+## 4. Script execution lifecycles
+
+`utils.executionSource` identifies why the current top-level invocation
+happened. It does not indicate whether the source came from the compilation
+cache or whether the script has run before.
+
+| Trigger                            | `utils.executionSource` | EA lifetime                        |
+| ---------------------------------- | ----------------------- | ---------------------------------- |
+| Script button, command, or hotkey  | `manual`                | ordinary view/script lifetime      |
+| Configured startup script          | `plugin-startup`        | plugin lifetime                    |
+| `registerAutostart()` attachment   | `view-autostart`        | Excalidraw view lifetime           |
+| Persisted sidepanel reconstruction | `sidepanel-restore`     | sidepanel tab lifetime             |
+| Sidepanel backing-script reload    | `sidepanel-reload`      | replacement sidepanel tab lifetime |
+| Drawing `excalidraw-onload-script` | `drawing-onload`        | drawing/view lifetime              |
+
+Manual invocation always remains repeatable, including for scripts that also
+use view autostart. Use `ea.registerCleanup()` for external resources owned by
+the current EA:
+
+```ts
+const ref = app.workspace.on("file-open", handler);
+ea.registerCleanup(() => app.workspace.offref(ref));
+
+window.addEventListener("resize", handler);
+ea.registerCleanup(() => window.removeEventListener("resize", handler));
+```
+
+The returned function unregisters the cleanup without executing it.
+
+---
+
+## 5. Script Settings and customData Best Practices
 
 **Script settings** are persisted in Obsidian's plugin data across sessions:
 
@@ -116,7 +147,7 @@ const role = el.customData?.myScript?.role;
 
 ---
 
-## 5. Image Export and File Handling Caveats
+## 6. Image Export and File Handling Caveats
 
 - **`ea.createPNG` / `ea.createSVG`** render the current workbench elements, not the live canvas. Make sure you have the right elements staged.
 - Always `await` these methods — they are asynchronous and will silently return nothing if called without `await`.
@@ -125,7 +156,7 @@ const role = el.customData?.myScript?.role;
 
 ---
 
-## 6. Script Overview Block
+## 7. Script Overview Block
 
 Every `main.ts` (and feature module) must open with a `@file` / `@overview` JSDoc block:
 
@@ -144,7 +175,7 @@ This is enforced via the `jsdoc/require-file-overview` rule (can be added to ESL
 
 ---
 
-## 7. Function Documentation Comments
+## 8. Function Documentation Comments
 
 Every exported (and complex internal) function must have a JSDoc block:
 

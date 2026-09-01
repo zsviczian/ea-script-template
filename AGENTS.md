@@ -53,12 +53,16 @@ When preparing a script for obsidian-excalidraw-plugin:
 - `ea.setView()` and `ea.setView("auto")` select a sensible default;
   `ea.setView(view)` binds explicitly; `ea.setView(null)` deliberately clears
   `ea.targetView`. Clear the target when a multi-view sidepanel becomes unbound.
-- Use `utils.executionSource` to distinguish manual, autostart,
-  sidepanel-restore, and drawing-onload executions. Autostart should register
-  view-local behavior and return without launching interactive work.
+- Use `utils.executionSource` to distinguish `manual`, `plugin-startup`,
+  `view-autostart`, `sidepanel-restore`, `sidepanel-reload`, and
+  `drawing-onload` executions. View autostart should register view-local
+  behavior and return without launching interactive work.
 - Pass a concise explanation to `ea.registerAutostart(message)` when autostart
   only registers tools or providers; state explicitly that the main action will
   not start when a drawing opens.
+- Use `ea.registerCleanup()` for listeners, timers, observers, and subscriptions
+  owned by a script EA. Cleanup runs when that specific EA is destroyed, so its
+  lifetime follows the trigger that created it.
 - `registerElementActionProvider()` expects an Obsidian/Lucide icon name, not
   SVG markup. For buttons you render yourself, resolve icons with
   `ea.obsidian.getIcon()` and recreate the markup in the owning document.
