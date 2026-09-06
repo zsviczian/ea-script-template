@@ -900,16 +900,19 @@ export declare class ExcalidrawAutomate {
      * @param {string} tex - The LaTeX equation string.
      * @param {number} [scaleX=1] - The x-scaling factor (post mathjax creation)
      * @param {number} [scaleY=1] - The y-scaling factor (post mathjax creation)
+     * @param {MathJaxRenderOptions} [options] - MathJax rendering options. Set `throwOnError` to propagate invalid LaTeX errors.
      * @returns {Promise<string>} Promise resolving to the ID of the added LaTeX image element.
      */
-    addLaTex(topX: number, topY: number, tex: string, scaleX?: number, scaleY?: number): Promise<string>;
+    addLaTex(topX: number, topY: number, tex: string, scaleX?: number, scaleY?: number, options?: MathJaxRenderOptions): Promise<string>;
     /**
      * Returns the base64 dataURL of the LaTeX equation rendered as an SVG.
      * @param {string} tex - The LaTeX equation string.
      * @param {number} [scale=4] - The scale factor for the image.
+     * @param {MathJaxRenderOptions} [options] - MathJax rendering options. Set `throwOnError` to propagate invalid LaTeX errors.
      * @returns {Promise<{mimeType: MimeType; fileId: FileId; dataURL: DataURL; created: number; size: { height: number; width: number };}>} Promise resolving to the LaTeX image data.
      */
-    tex2dataURL(tex: string, scale?: number): Promise<{
+    tex2dataURL(tex: string, scale?: number, // Default scale value, adjust as needed
+    options?: MathJaxRenderOptions): Promise<{
         mimeType: MimeType;
         fileId: FileId;
         dataURL: DataURL;
@@ -2340,6 +2343,8 @@ export declare const MARKDOWN_IMAGE_CUSTOM_DATA_KEY = "markdownImage";
 export declare const MARKDOWN_IMAGE_EMBEDDED_FILE_TOKEN = "markdown-image";
 export declare const MARKDOWN_IMAGE_SCHEMA_VERSION = 1;
 export type MarkdownImageSource = "local" | "external";
+/** Persisted behavior for deleting a local Markdown image from the scene. */
+export type MarkdownImageDeletionPreference = "ask" | "keep" | "delete";
 export type MarkdownImageTransclusionRenderSettings = {
     enabled: boolean;
     fontFamily: string;
@@ -2375,6 +2380,15 @@ export type MarkdownImageData = {
 export type MarkdownImageSettings = {
     defaults: MarkdownImageRenderSettings;
 };
+
+/* ********************************* */
+/* lib/types/mathJaxTypes.d.ts */
+/* ********************************* */
+/** Options for rendering LaTeX through the Excalidraw Extras MathJax service. */
+export interface MathJaxRenderOptions {
+    /** Propagate MathJax conversion errors instead of returning null. */
+    throwOnError?: boolean;
+}
 
 /* ************************************** */
 /* lib/types/obsidianDeclarativeSettings.d.ts */
@@ -3011,6 +3025,13 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase & Readonly<{
     lineHeight: number & {
         _brand: "unitlessLineHeight";
     };
+    /**
+     * Position of text bound to a linear element (such as an arrow),
+     * expressed as a normalized arc-length parameter (0–1) along the
+     * container's whole path. Independent of how the path is segmented,
+     * so it survives midpoint insertion and other geometry changes.
+     * */
+    labelPosition?: number | null;
 }>;
 export type ExcalidrawBindableElement = ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawTextElement | ExcalidrawImageElement | ExcalidrawIframeElement | ExcalidrawEmbeddableElement | ExcalidrawFrameElement | ExcalidrawMagicFrameElement;
 export type ExcalidrawTextContainer = ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawArrowElement;
@@ -3286,6 +3307,7 @@ declare class App extends React.Component<AppProps, AppState> {
             wasAddedToSelection: boolean;
             hasBeenDuplicated: boolean;
             hasHitCommonBoundingBoxOfSelectedElements: boolean;
+            arrowLabel: boolean;
         };
         withCmdOrCtrl: boolean;
         drag: {
@@ -3348,6 +3370,7 @@ declare class App extends React.Component<AppProps, AppState> {
             wasAddedToSelection: boolean;
             hasBeenDuplicated: boolean;
             hasHitCommonBoundingBoxOfSelectedElements: boolean;
+            arrowLabel: boolean;
         };
         withCmdOrCtrl: boolean;
         drag: {
@@ -3709,9 +3732,12 @@ declare class App extends React.Component<AppProps, AppState> {
     }) & {
         preferSelected?: boolean;
     }): NonDeleted<ExcalidrawElement> | null;
-    private getElementsAtPosition;
+    getElementsAtPosition(x: number, y: number, opts?: {
+        includeBoundTextElement?: boolean;
+        includeLockedElements?: boolean;
+    }): NonDeleted<ExcalidrawElement>[];
     getElementHitThreshold(element: ExcalidrawElement): number;
-    private hitElement;
+    hitElement(x: number, y: number, element: NonDeletedExcalidrawElement, considerBoundingBox?: boolean): boolean;
     getTextBindableContainerAtPosition(x: number, y: number): (Readonly<{
         id: string;
         x: number;
@@ -3927,6 +3953,10 @@ declare class App extends React.Component<AppProps, AppState> {
     private handleCanvasPointerMove;
     private handleEraser;
     private handleTouchMove;
+    /**
+     * Applies the hover affordances of a selected linear element: the cursor,
+     * plus the hovered-handle state that renders them highlighted.
+     */
     handleHoverSelectedLinearElement(linearElementEditor: LinearElementEditor, scenePointerX: number, scenePointerY: number): void;
     private handleCanvasPointerDown;
     private handleCanvasPointerUp;
@@ -5083,6 +5113,7 @@ export type AppClassProperties = {
     dismissLinearEditor: App["dismissLinearEditor"];
     flowchart: App["flowchart"];
     drawShape: App["drawShape"];
+    arrowText: App["arrowText"];
     cursor: App["cursor"];
     bucketFill: App["bucketFill"];
     isToolLocked: App["isToolLocked"];
@@ -5139,6 +5170,7 @@ export type PointerDownState = Readonly<{
         wasAddedToSelection: boolean;
         hasBeenDuplicated: boolean;
         hasHitCommonBoundingBoxOfSelectedElements: boolean;
+        arrowLabel: boolean;
     };
     withCmdOrCtrl: boolean;
     drag: {
