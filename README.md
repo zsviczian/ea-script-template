@@ -2,12 +2,13 @@
 
 Professional workspace template for building and maintaining multiple ExcalidrawAutomate scripts in one repository.
 
-## Fork and Keep in Sync
+## Recommended: Fork and Keep in Sync
 
-This repository is intended to be forked for a long-lived collection of
-ExcalidrawAutomate scripts. Fork it, add and maintain your scripts there, and
-regularly update your fork with changes from the `ea-script-template` master
-repository so that you receive API, tooling, and documentation updates.
+For a long-lived collection of ExcalidrawAutomate scripts, we recommend
+forking this repository. Add and maintain your scripts in the fork, and
+regularly update it from `ea-script-template` so that you receive API, tooling,
+and documentation updates. A fork preserves the GitHub fork relationship and
+shared history, making the upstream relationship clear.
 
 Keep the shared agent and authoring files aligned with the master repository:
 
@@ -21,11 +22,39 @@ requests to `ea-script-template` to publish a script. Publish scripts
 separately in the `obsidian-excalidraw-plugin` repository as described in
 [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
+### Alternative: Use this repository as a GitHub template
+
+Use GitHub's **Use this template** action when you specifically want an
+independent repository, cannot create a fork in your organization, or prefer
+not to have a GitHub fork relationship. A template-created repository is not
+automatically connected to this repository, but you can still receive future
+updates by adding this repository as an `upstream` remote:
+
+```bash
+git remote add upstream https://github.com/zsviczian/ea-script-template.git
+git fetch upstream
+git merge upstream/main
+```
+
+Use the template repository's default branch if it is not `main`. If the
+template-created repository has unrelated Git history, the first merge may
+need:
+
+```bash
+git merge upstream/main --allow-unrelated-histories
+```
+
+Resolve any conflicts once, then continue syncing with `git fetch upstream`
+and `git merge upstream/main`. Whether you fork this repository or create a
+repository from its template, keep fork-specific rules in `FORK_RULES.md` and
+keep shared guidance aligned with this repository. The template workflow works,
+but requires this manual upstream setup.
+
 ## Quick start
 
 ```bash
-git clone https://github.com/zsviczian/ea-script-template.git my-ea-scripts
-cd my-ea-scripts
+git clone https://github.com/your-account/your-ea-scripts.git
+cd your-ea-scripts
 npm install
 npm run build
 ```
