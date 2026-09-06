@@ -1,10 +1,15 @@
 # Contributing Guide
 
-Thank you for wanting to contribute an EA script to the [obsidian-excalidraw-plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin) community!
+This repository is a forkable authoring workspace for ExcalidrawAutomate
+scripts. It is not the publication target for scripts.
+
+Do not open a pull request to `ea-script-template` to publish a script. Publish
+the script in the [obsidian-excalidraw-plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin)
+repository instead, following the process below.
 
 ---
 
-## Publishing a script to obsidian-excalidraw-plugin
+## Publishing a Script to obsidian-excalidraw-plugin
 
 ### Step 1 - Build and test your script locally
 
@@ -67,12 +72,16 @@ Update `ea-scripts/directory-info.json` in the same PR:
 - for new scripts: add the script metadata entry
 - for updates: refresh the existing script `mtime` value
 
-### Step 6 - Open a focused PR
+### Step 6 - Open a focused PR in obsidian-excalidraw-plugin
 
 - Title: `feat(scripts): add Your Script Name`
 - Include only the files changed in steps 2-5
 - Keep the PR focused on a single script addition
 - Respond promptly to review comments
+
+The pull request should target the `obsidian-excalidraw-plugin` repository, not
+this authoring workspace. Keep the template fork focused on script source and
+fork-specific development rules.
 
 ---
 

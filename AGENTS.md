@@ -1,5 +1,9 @@
 # Agent guide for ea-script-template
 
+This is the canonical agent guide for the repository. Read
+[FORK_RULES.md](./FORK_RULES.md) for rules that apply only to a downstream
+fork, and preserve those rules when synchronizing with the master repository.
+
 ## Purpose
 
 This repository is a multi-script authoring workspace for ExcalidrawAutomate scripts.
@@ -12,6 +16,26 @@ Treat it as a script portfolio repo, not a single-script starter.
   a preview, co-located tests, and a script-local lang folder.
 - Build output is shared under build/{slug}/{slug}.md and build/{slug}/{slug}.svg.
 - Shared helpers belong under src/sharedUtils/.
+
+## Build behavior
+
+- `npm run build` discovers all `src/scripts/*/main.ts` entrypoints.
+- Each script is bundled to `build/{slug}/{slug}.md`.
+- Each script emits `build/{slug}/{slug}.svg`, copied from `preview.svg` or
+  generated as a placeholder.
+
+## Release behavior
+
+- `npm run package` copies build outputs into `release/{slug}/`.
+- Release output is a transport artifact; do not edit it by hand.
+
+## Script authoring
+
+- Keep `main.ts` focused on orchestration.
+- Keep reusable functions in `src/sharedUtils/`.
+- Prefer typed helpers and runtime dependencies available in Obsidian.
+- Keep English strings in each script's `lang/en.ts` and use the shared i18n
+  helper.
 
 ## Tests
 
@@ -30,6 +54,17 @@ Treat it as a script portfolio repo, not a single-script starter.
 - Keep each script's strings in its own `lang/` folder; never create one catalog
   shared by unrelated scripts.
 - Treat `lang/en.ts` as the typed source of truth. Maintain `de.ts`, `es.ts`,
+  `fr.ts`, `ru.ts`, and `zh-cn.ts`; incomplete translations may fall back to
+  English.
+- Use the shared `createTranslator` helper and named placeholders for dynamic
+  values.
+- Do not hard-code user-visible strings in orchestration or domain logic.
+
+## Localization
+
+- Keep each script's strings in its own `lang/` folder; never create one catalog
+  shared by unrelated scripts.
+- Treat `lang/en.ts` as the typed source of truth. Maintain `de.ts`, `es.ts`,
   `fr.ts`, `ru.ts`, and `zh-cn.ts`; incomplete translations may fall back to English.
 - Use the shared `createTranslator` helper and named placeholders for dynamic values.
 - Do not hard-code user-visible strings in orchestration or domain logic.
@@ -42,6 +77,9 @@ When preparing a script for obsidian-excalidraw-plugin:
 - preview image follows scripts-{slug}.{ext}
 - update ea-scripts/index-new.md manually
 - update ea-scripts/directory-info.json and refresh mtime on updates
+
+Script publication happens in the separate `obsidian-excalidraw-plugin`
+repository. Do not open a publishing PR against `ea-script-template`.
 
 ## API guidance
 
@@ -87,6 +125,7 @@ When preparing a script for obsidian-excalidraw-plugin:
 
 ## Auto-discovery files
 
-- AGENTS.md: this file
-- CLAUDE.md: implementation notes and build conventions
+- AGENTS.md: this file; the canonical agent guide
+- FORK_RULES.md: downstream-fork-specific rules
+- CLAUDE.md: compatibility pointer to this file
 - .ai/excalidraw-automate/SKILL.md: link-first skill bootstrap to canonical references
