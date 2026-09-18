@@ -14,7 +14,7 @@
 
 declare interface ExcalidrawAutomate {
   /** Returns true when the running plugin version meets the minimum. */
-  verifyMinAppVersion(version: string): boolean;
+  verifyMinimumPluginVersion(version: string): boolean;
 
   /** Returns the live Excalidraw React API for the active canvas. */
   getExcalidrawAPI(): ExcalidrawAPI | null;

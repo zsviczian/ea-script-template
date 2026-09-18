@@ -28,7 +28,7 @@ export async function runColorPalettePicker(
  * Script-engine entrypoint.
  */
 async function main(): Promise<void> {
-  if (!ea.verifyMinAppVersion("2.0.0")) {
+  if (!ea.verifyMinimumPluginVersion("2.0.0")) {
     new Notice("This script requires Excalidraw 2.0.0 or newer.");
     return;
   }
