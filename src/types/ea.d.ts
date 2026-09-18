@@ -40,20 +40,6 @@ declare interface ExcalidrawAutomate {
   /** Persists updated script settings. */
   setScriptSettings(settings: Record<string, unknown>): Promise<void>;
 
-  /** Shows a native Obsidian input prompt modal. */
-  inputPrompt(
-    header: string,
-    placeholder?: string,
-    value?: string,
-  ): Promise<string | null>;
-
-  /** Shows a native Obsidian suggestion modal. */
-  suggestionPrompt(
-    header: string,
-    displayItems: string[],
-    hint?: string,
-  ): Promise<string | null>;
-
   // Element creation helpers
   addRect(topX: number, topY: number, width: number, height: number): string;
   addEllipse(topX: number, topY: number, width: number, height: number): string;
@@ -125,3 +111,9 @@ declare const ea: ExcalidrawAutomate;
 declare class Notice {
   constructor(message: string, timeout?: number);
 }
+
+/** Script Engine helpers for prompts and suggestions. */
+declare const utils: {
+  inputPrompt(header: string, placeholder?: string, value?: string): Promise<string | null>;
+  suggester(displayItems: string[], items?: unknown[], hint?: string): Promise<unknown>;
+};
