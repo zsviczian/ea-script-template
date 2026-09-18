@@ -81,6 +81,60 @@ ea-script-template/
 | `npm run new-script -- --name "My Script"` | Creates `src/scripts/{slug}/main.ts` and `preview.svg`                                                                                                                                             |
 | `npm run check`                            | Typecheck + lint                                                                                                                                                                                   |
 | `npm run sync-refs`                        | Copies the full generated skill snapshot from sibling `obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate/` into `.ai/excalidraw-automate/` and renames reference scripts to `.js` |
+| `npm run repo:export`                      | Creates `repository.zip` from the current repository for upload to ChatGPT, excluding generated, binary, dependency, and other ignored files                                                       |
+| `npm run repo:update`                      | Copies the contents of `~/Downloads/update/` into the repository, preserving the returned repository-relative paths                                                                                |
+
+## ChatGPT development workflow
+
+With a ChatGPT Plus subscription you get unlimited chat, plus a limited CODEX quota. If you need to balance your CODEX coding agent budget, this workflow comes in handy for design runs and for simple changes and development work.
+
+The repository includes two platform-independent helper commands for working on scripts with ChatGPT on macOS or Windows.
+
+1. From the repository root, create an uploadable snapshot:
+
+   ```bash
+   npm run repo:export
+   ```
+
+   This creates `repository.zip`.
+
+2. Upload `repository.zip` to your ChatGPT Plus chat and ask the agent to develop, fix, or modify the script.
+
+3. When asking ChatGPT to return changes, ask it to:
+
+   > Return only the modified files in a ZIP, preserving the repository-relative folder structure.
+
+   For example, if ChatGPT changes `src/scripts/my-script/main.ts`, the downloaded ZIP should contain:
+
+   ```text
+   src/
+   └── scripts/
+       └── my-script/
+           └── main.ts
+   ```
+
+   This is important because `repo:update` copies the returned files back into their matching locations in the repository.
+
+4. Download the ZIP returned by ChatGPT, extract its contents into:
+
+   ```text
+   ~/Downloads/update/
+   ```
+
+5. From the repository root, apply the returned files:
+
+   ```bash
+   npm run repo:update
+   ```
+
+6. Review the changes and run the normal validation commands, for example:
+
+   ```bash
+   npm run check
+   npm run build
+   ```
+
+`repo:update` overwrites files that are present in the update folder but does not delete unrelated repository files. If needed, the update source folder can be overridden with the `REPO_UPDATE_DIR` environment variable.
 
 ## Publishing model
 

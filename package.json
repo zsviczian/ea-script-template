@@ -15,7 +15,9 @@
     "check": "npm run typecheck && npm run lint",
     "package": "npm run build && node scripts/package.mjs",
     "new-script": "tsx scripts/new-script.ts",
-    "sync-refs": "node scripts/sync-refs.mjs"
+    "sync-refs": "node scripts/sync-refs.mjs",
+    "repo:export": "node scripts/generate-repository-zip.mjs",
+    "repo:update": "node scripts/update-repository.mjs"
   },
   "devDependencies": {
     "@zsviczian/excalidraw": "^0.18.129",
