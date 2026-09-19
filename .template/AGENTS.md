@@ -26,6 +26,10 @@
   devices for affected interactions. Use Obsidian modals instead of browser dialogs.
 - Keep script-specific strings together. Follow the local repository's localization
   policy; the template does not require a particular translation framework.
+- Keep script icons simple and recognizable at small sizes. Prefer an existing
+  icon from lucide.dev, which matches Obsidian's icon language. If a custom icon is
+  necessary, make it square (1:1) and ensure it remains recognizable at 64 by 64 px;
+  do not use elaborate illustrations.
 - Test meaningful script behavior in import-safe modules, never by importing an
   executable main.ts. Run npm run check and npm run build after changes, plus relevant
   local tests. Exercise runtime behavior in Obsidian; typechecking cannot prove it.
