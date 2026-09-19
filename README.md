@@ -29,12 +29,15 @@ No runtime npm imports are available in the Script Engine.
 ## Keep up to date
 
 ```sh
-npm run update-template -- --check
+npm run update-template:check
 npm run update-template
 npm install
 npm run check
 npm run build
 ```
+
+If npm reports an unknown flag, run `node scripts/update-template.mjs --check`
+for the same read-only preview.
 
 Updates bring shared tooling, EA types, and agent references from the template's
 `master`, preserving your scripts, helpers, repository identity, and custom guidance.
@@ -65,7 +68,7 @@ plugin → template → personal repository workflow.
 | `npm run check` | Typecheck and lint |
 | `npm run build` | Bundle every script independently |
 | `npm run package` | Build and copy artifacts into release/ |
-| `npm run update-template -- --check` | Preview an upstream template update |
+| `npm run update-template:check` | Preview an upstream template update |
 | `npm run update-template` | Apply a reviewed update |
 | `npm run test:template` | Verify updater behavior and API typing |
 | `npm run repo:export` | Export repository.zip for a chat session |

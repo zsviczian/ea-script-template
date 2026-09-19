@@ -94,8 +94,8 @@
     ".ai/excalidraw-automate/references/scripts/Zoom to Fit Selected Elements.js": "d990e02f1dc0d0157e276b52511bd2dd614d18a65579b749b0a5fc3b9d715359",
     ".ai/excalidraw-automate/references/startup-scripts.md": "396b14386054c88537e09a024d72f628b95e3b971cd4a463d0407b92d088d668",
     ".ai/excalidraw-automate/references/type-definitions.md": "4e44dc8e35ad74865bce1de386a6e31e748957f5f86473a41f7323cdd197fee8",
-    ".template/AGENTS.md": "09725676343ff4b6dacc7454403da82fa9b7ecdb8ea87758e77f0d860241f4ea",
-    ".template/README.md": "19323a32f9682f32b6e4411a7977a6dd5a0430ac4b95bda25b094d8f15b1be3e",
+    ".template/AGENTS.md": "d94a22a4fa006519779e339c581384753bf71c1bcd8bf393e6cdb32ee35b597f",
+    ".template/README.md": "c8caaa9aa8f6e3e13cd2066a5eea508e08eb34111f58bc67dfb7f218572500c1",
     ".template/api-source.json": "9c3f5aa48e792de92263d422d4d59e89c90e9fb60d07731812e565f18a2ede7a",
     ".template/tsconfig.paths.json": "2c786dc93da7baae4801a637d1db3d54250280eae34e6d0a42ae9ac6d042ac0a",
     ".template/types/embeddedCanvasNode.d.ts": "ad9f8b5f003469a146fa9753b4b257ec0311289b268b6b5c0f2ba37f84672309",
@@ -156,6 +156,7 @@
       "repo:export": "node scripts/generate-repository-zip.mjs",
       "repo:update": "node scripts/update-repository.mjs",
       "update-template": "node scripts/update-template.mjs",
+      "update-template:check": "node scripts/update-template.mjs --check",
       "template:manifest": "node scripts/template-manifest.mjs",
       "test:template": "node --test tests/*.test.mjs"
     },

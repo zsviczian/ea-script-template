@@ -38,7 +38,8 @@
   repository-specific ambient declarations and type augmentations in
   src/types/local.d.ts; fix the source or generator when the shared API is wrong.
 - At the start of work in a script workspace, proactively run
-  `npm run update-template -- --check` once when the updater is available. Repeat
+  `node scripts/update-template.mjs --check` once when the updater is available.
+  Repeat
   only after a long-lived context when it has not yet been checked; never run it
   before every command. If the preview has a clean update, review its paths and
   apply it with `npm run update-template`, then run npm install and the relevant

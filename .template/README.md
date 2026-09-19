@@ -16,13 +16,16 @@ Start with a committed working tree so you can inspect and undo the update easil
 Use Node 22.13 or newer, npm, and Git.
 
 ```sh
-npm run update-template -- --check
+npm run update-template:check
 npm run update-template
 npm install
 npm run check
 npm run test:template
 npm run build
 ```
+
+If npm does not forward command arguments correctly in your shell, the equivalent
+preview command is `node scripts/update-template.mjs --check`.
 
 The updater downloads `zsviczian/ea-script-template`'s `master` into a temporary
 checkout, verifies its manifest, and updates only the managed files and individual

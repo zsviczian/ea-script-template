@@ -19,6 +19,7 @@
     "repo:export": "node scripts/generate-repository-zip.mjs",
     "repo:update": "node scripts/update-repository.mjs",
     "update-template": "node scripts/update-template.mjs",
+    "update-template:check": "node scripts/update-template.mjs --check",
     "template:manifest": "node scripts/template-manifest.mjs",
     "test:template": "node --test tests/*.test.mjs"
   },
