@@ -74,6 +74,8 @@ function validate(manifest) {
   }
 }
 const fingerprint = (value) => (value === null ? null : hash(value));
+const localFingerprint = (value) =>
+  value === null ? null : hash(value.toString().replaceAll("\r\n", "\n"));
 let temporary;
 try {
   if (!source) {
@@ -123,7 +125,7 @@ try {
         `Stale upstream manifest: ${name}. Run npm run template:manifest in the template.`,
       );
     const local = read(root, name);
-    if (choose(name, fingerprint(local), baseline?.files[name] ?? null, fingerprint(next)))
+    if (choose(name, localFingerprint(local), baseline?.files[name] ?? null, fingerprint(next)))
       changes.set(name, next);
   }
   const pkg = readJson(root, "package.json");

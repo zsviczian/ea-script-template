@@ -27,7 +27,7 @@ npm run build
 If npm does not forward command arguments correctly in your shell, the equivalent
 preview command is `node scripts/update-template.mjs --check`.
 
-The updater downloads `zsviczian/ea-script-template`'s `master` into a temporary
+The updater downloads `zsviczian/ea-script-template`'s default branch into a temporary
 checkout, verifies its manifest, and updates only the managed files and individual
 package settings. `--check` previews without writing. No merge, commit, push,
 dependency installation, or downloaded script execution happens inside the updater.

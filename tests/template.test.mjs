@@ -105,6 +105,19 @@ test("conflicts abort all writes; explicit local resolution survives repeated up
   assert.equal(f.run("--accept-upstream", "AUTHORING_GUIDE.md").status, 0);
 });
 
+test("does not treat Windows line endings as a local customization", (t) => {
+  const f = fixture(t);
+  f.manifest.files["AUTHORING_GUIDE.md"] = hash("old\n");
+  for (const dir of [f.source, f.target]) {
+    put(dir, "AUTHORING_GUIDE.md", "old\n");
+    put(dir, ".template/manifest.json", json(f.manifest));
+  }
+  put(f.target, "AUTHORING_GUIDE.md", "old\r\n");
+  f.publish();
+  assert.equal(f.run().status, 0);
+  assert.equal(readFileSync(join(f.target, "AUTHORING_GUIDE.md"), "utf8"), "new");
+});
+
 test("upstream deletions preserve modified files until explicitly resolved", (t) => {
   const f = fixture(t);
   delete f.manifest.files["AUTHORING_GUIDE.md"];
