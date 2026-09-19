@@ -33,6 +33,13 @@
   declaration graph. Never patch them or restore handwritten EA stubs. Put
   repository-specific ambient declarations and type augmentations in
   src/types/local.d.ts; fix the source or generator when the shared API is wrong.
+- At the start of work in a script workspace, proactively run
+  `npm run update-template -- --check` once when the updater is available. Repeat
+  only after a long-lived context when it has not yet been checked; never run it
+  before every command. If the preview has a clean update, review its paths and
+  apply it with `npm run update-template`, then run npm install and the relevant
+  checks. If the workspace has local changes or the preview reports conflicts, do
+  not force an update: report the paths and resolve each with the repository owner.
 - Template updates must preserve src/scripts, src/sharedUtils, local guidance,
   repository identity, and custom package keys. Follow .template/README.md. Never
   resolve all updater conflicts by blindly accepting upstream files.
