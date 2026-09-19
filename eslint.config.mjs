@@ -5,6 +5,7 @@ import globals from "globals";
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [
+  { ignores: [".template/**", ".ai/**"] },
   {
     files: ["src/**/*.ts", "scripts/**/*.ts", "examples/**/*.ts"],
     languageOptions: {

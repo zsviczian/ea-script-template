@@ -9,7 +9,7 @@
  * @param message  The message to display.
  */
 export function showNotice(message: string): void {
-  new Notice(message);
+  new ea.obsidian.Notice(message);
 }
 
 /**
@@ -18,5 +18,5 @@ export function showNotice(message: string): void {
  * @param message  Error detail text.
  */
 export function showError(message: string): void {
-  new Notice(`Error: ${message}`);
+  new ea.obsidian.Notice(`Error: ${message}`);
 }

@@ -1,162 +1,108 @@
-# ExcalidrawAutomate Authoring Guide
+# Writing ExcalidrawAutomate scripts
 
-This guide covers best practices for writing high-quality EA scripts using this template.
+Keep one script per `src/scripts/{slug}/` with a thin `main.ts` entrypoint and a
+`preview.svg`. Shared helpers belong in `src/sharedUtils/`; script-specific modules,
+README, tests, and translations belong beside that script. `examples/` is reference
+source, not an additional build input.
 
-## Workspace model
+## Runtime and types
 
-This repository is designed to host multiple scripts in one workspace.
+The Script Engine injects `ea` and `utils`. Use `ea.obsidian` for runtime Obsidian
+classes and functions. For example, `new ea.obsidian.Notice("Done")`. Use
+`import type { TFile } from "obsidian"` for types; do not bundle a runtime import
+from Obsidian or the plugin. The build rejects those unavailable runtime modules.
 
-- Put each script in `src/scripts/{slug}/`.
-- Keep script entrypoint in `src/scripts/{slug}/main.ts`.
-- Store per-script preview in `src/scripts/{slug}/preview.svg`.
-- Keep reusable helpers in `src/sharedUtils/`.
-- Build outputs are emitted to `build/{slug}/{slug}.md` and `build/{slug}/{slug}.svg`.
-
-Script file extension behavior in Obsidian Excalidraw (since 2.27.0):
-
-- both `.js` and `.md` script files are supported
-- if both are present for the same script name, `.md` is preferred
-- this template intentionally emits `.md` so scripts are easier to inspect/edit in Obsidian's markdown editor
-
-The build moves top-level `UPPER_SNAKE_CASE` `const` declarations ahead of the bundled script so users can find and edit configuration quickly. Keep those configuration initializers self-contained; ordinary lower-camel-case constants remain inside the bundle.
-
-Use `npm run new-script -- --name "My Script"` to scaffold a new script folder.
-
----
-
-## 1. The Immutable Scene Workflow (EA Workbench)
-
-ExcalidrawAutomate uses a **workbench** pattern: you stage new elements before writing them to the live canvas.
+`src/types/ea.d.ts` derives the EA API from `.template/types/`, generated from the
+plugin declarations. `utils` also supports object-form inputPrompt, generic
+suggester, scriptFile, and executionSource. Both prompts can return undefined on
+cancellation; an empty string can be valid input.
 
 ```ts
-// 1. Reset the workbench (clear any previously staged elements)
-ea.reset();
+const label = await utils.inputPrompt({ header: "Enter a label", value: "" });
+if (label === undefined) return;
+const choice = await utils.suggester(["Red", "Blue"], ["#e03131", "#1971c2"]);
+if (choice === undefined) return;
+```
 
-// 2. Configure styles BEFORE calling add*
-ea.style.strokeColor = "#e03131";
-ea.style.backgroundColor = "#ffa8a8";
-ea.style.strokeWidth = 2;
+Check plugin requirements with `ea.verifyMinimumPluginVersion("2.27.0")` and
+Obsidian requirements with `ea.obsidian.requireApiVersion("1.8.7")`. Generated
+types describe the recorded source revision, not necessarily the user's runtime.
+The plugin's declarations currently compile without strict null checking, so still
+check view/API availability and documented cancellation/failure cases at runtime.
 
-// 3. Stage one or more elements
-const id = ea.addRect(100, 100, 200, 80);
+For undocumented Obsidian behavior, consult
+[obsidian-typings](https://github.com/obsidian-typings/obsidian-typings), verify the
+actual runtime, and keep local augmentations narrow. It is a reference for internal
+APIs, not a required runtime dependency for scripts.
 
-// 4. Commit staged elements to the live scene
+## Edit existing elements through the workbench
+
+```ts
+ea.clear();
+const selected = ea.getViewSelectedElements();
+ea.copyViewElementsToEAforEditing(selected);
+for (const original of selected) {
+  const editable = ea.getElement(original.id);
+  if (editable) editable.strokeColor = "#e03131";
+}
 await ea.addElementsToView(false, true);
+ea.clear();
 ```
 
-**Never** push half-baked elements to the scene and then mutate them afterwards — always build the complete set of staged elements before calling `addElementsToView`.
+Scene elements are immutable. Preserve their IDs by copying them into EA for
+editing. `cloneElement`/`cloneElements` create new IDs and are for duplicates.
+Await one transaction before starting another. `clear()` empties the workbench;
+`reset()` also resets styles. Set styles before creating new elements.
 
----
+Prefer EA methods first, then `ea.getExcalidrawAPI()` for component-level operations,
+then low-level ExcalidrawLib helpers when needed. Use `ea.addAppendUpdateCustomData`
+to merge metadata safely. `getScriptSettings()` / `setScriptSettings()` persist
+script settings; follow existing script examples for settings metadata and values.
 
-## 2. ea vs Excalidraw API vs window.ExcalidrawLib
+## Long-lived scripts and UI
 
-| Object                  | When to use                                                                                                                                     |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ea`                    | Adding new elements, showing prompts, reading/writing script settings, accessing the workbench                                                  |
-| `ea.getExcalidrawAPI()` | Reading or bulk-updating the **existing** scene (`getSceneElements`, `updateScene`)                                                             |
-| `window.ExcalidrawLib`  | Low-level geometry helpers (`intersectElementWithLine`, `getCommonBounds`, etc.) — only when `ea` and the React API do not expose what you need |
+Use `ea.createSidepanelTab()` and its returned tab's lifecycle hooks for persistent
+UI. There is no `renderSidepanel` API. A restored tab can begin without a target
+view: bind with `ea.setView(view)` on focus and clear with `ea.setView(null)` when
+unbound. Use the view's owning document/window for DOM, events, and timers.
 
-As a rule of thumb: reach for `ea` first, then the API, and only touch `ExcalidrawLib` as a last resort.
+Use `utils.executionSource` to distinguish manual, plugin-startup, view-autostart,
+sidepanel-restore, sidepanel-reload, and drawing-onload invocations. Register external
+listeners/timers/observers with `ea.registerCleanup()`; cleanup follows that EA's
+lifetime. Give `registerAutostart(message)` a clear explanation of what is registered.
 
----
+Use Obsidian modal UI rather than browser alert/confirm/prompt. Prefer Obsidian DOM
+helpers such as createDiv/createEl, accessible controls, and named icon identifiers
+for element-action providers. Read the local skill's sidepanel and modal examples.
 
-## 3. Modal and Sidepanel Patterns
+## Export and files
 
-### Simple text input
+Use `createViewSVG` / `createViewPNG` for the current view, and `createSVG(null, ...)`
+/ `createPNG(null, ...)` for the EA workbench. A template path exports an existing
+drawing through the plugin's loader. `elementsOverride` is a complete replacement
+export set, not a patch. Await export operations. Use vault-relative paths and
+Obsidian's Vault API; check for existing files before overwriting them.
 
-```ts
-import { showNotice } from "../../sharedUtils/notice";
+## Bundling and testing
 
-const label = await utils.inputPrompt("Enter a label", "my label", "");
-if (!label) {
-  showNotice("Cancelled");
-  return;
-}
-```
+The build discovers `src/scripts/*/main.ts`, bundles each independently, and writes
+executable JavaScript as `.md`, plus its preview. If `.md` and `.js` share a script
+name, the plugin prefers `.md`. Copy output into the configured Script Engine folder.
 
-### Choice list
+Only literal, self-contained top-level `UPPER_SNAKE_CASE` constants are extracted
+as editable configuration. Values that depend on imports, runtime globals, or
+other computed initialization must remain inside the bundle. Keep those variable
+names in lowerCamelCase. Do not put runtime imports in the extracted constants.
 
-```ts
-const options = ["Red", "Green", "Blue"];
-const choice = await utils.suggester(options, options);
+Document entrypoints with @file and @overview and explain exported or complex
+helpers with JSDoc. This is guidance, not a claim that ESLint enforces all JSDoc.
+Keep strings together and follow your repository's localization conventions.
 
-if (!choice) return;
-```
+Run `npm run check` and `npm run build`; test reusable behavior without importing
+an executable main.ts. Test actual scripts in Obsidian, including cancellation,
+empty selection, undo/save, and view changes. UI/lifecycle scripts need a popout and
+a physical mobile test; desktop emulation does not establish touch behavior.
 
-### Custom React sidepanel
-
-For complex UI (multi-field forms, previews) you can render a React component into the Excalidraw sidepanel. See the official plugin docs for the `renderSidepanel` API — it is beyond the scope of this template.
-
----
-
-## 4. Script Settings and customData Best Practices
-
-**Script settings** are persisted in Obsidian's plugin data across sessions:
-
-```ts
-const settings = ea.getScriptSettings() ?? {};
-if (!settings.strokeWidth) settings.strokeWidth = 2;
-if (!settings.colour) settings.colour = "#000000";
-
-// ... user interaction ...
-
-settings.colour = newColour;
-await ea.setScriptSettings(settings);
-```
-
-**customData** is stored on individual Excalidraw elements and travels with the `.excalidraw` file. Use it to tag elements that your script created or needs to recognise later. Prefer the helper so existing metadata from other scripts is preserved:
-
-```ts
-// Writing (safe merge)
-ea.addAppendUpdateCustomData(el.id, { myScript: { version: 1, role: "header" } });
-
-// Reading
-const role = el.customData?.myScript?.role;
-```
-
----
-
-## 5. Image Export and File Handling Caveats
-
-- **`ea.createPNG` / `ea.createSVG`** render the current workbench elements, not the live canvas. Make sure you have the right elements staged.
-- Always `await` these methods — they are asynchronous and will silently return nothing if called without `await`.
-- File paths must be vault-relative when using the Obsidian `app.vault` API. Do not use absolute filesystem paths.
-- When saving a new file, check for existing files first to avoid silent overwrites.
-
----
-
-## 6. Script Overview Block
-
-Every `main.ts` (and feature module) must open with a `@file` / `@overview` JSDoc block:
-
-```ts
-/**
- * @file my-feature.ts
- * @overview
- *   One or two sentence description of what this module does.
- *
- * @author  Your Name
- * @version 1.0.0
- */
-```
-
-This is enforced via the `jsdoc/require-file-overview` rule (can be added to ESLint config).
-
----
-
-## 7. Function Documentation Comments
-
-Every exported (and complex internal) function must have a JSDoc block:
-
-```ts
-/**
- * Short one-line description.
- *
- * @param ea     ExcalidrawAutomate instance.
- * @param label  Text to display inside the new box.
- * @returns      The element ID of the newly created text box.
- */
-export async function createLabelledBox(ea: ExcalidrawAutomate, label: string): Promise<string> {
-  // ...
-}
-```
+Start API research with `.ai/excalidraw-automate/references/api-usage-index.md`, then
+read the matching script and generated type declaration. Use `npm run update-template`
+to receive updated types and guidance; see [.template/README.md](.template/README.md).

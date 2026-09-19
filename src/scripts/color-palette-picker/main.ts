@@ -29,7 +29,7 @@ export async function runColorPalettePicker(
  */
 async function main(): Promise<void> {
   if (!ea.verifyMinimumPluginVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new ea.obsidian.Notice("This script requires Excalidraw 2.0.0 or newer.");
     return;
   }
 

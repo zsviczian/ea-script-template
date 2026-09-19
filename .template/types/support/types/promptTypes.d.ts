@@ -1,0 +1,20 @@
+// Generated scripting API. No plugin implementation declarations.
+export interface InputPromptOptions {
+    header: string;
+    placeholder?: string;
+    value?: string;
+    buttons?: ButtonDefinition[];
+    lines?: number;
+    displayEditorButtons?: boolean;
+    customComponents?: (container: HTMLElement) => void;
+    blockPointerInputOutsideModal?: boolean;
+    controlsOnTop?: boolean;
+    draggable?: boolean;
+}
+export type ButtonDefinition = {
+    caption: string;
+    tooltip?: string;
+    action: (input: string) => string | void | null;
+    iconId?: string;
+};
+export {};

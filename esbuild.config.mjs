@@ -64,6 +64,37 @@ function extractOverview(sourceText) {
   return summary || "Generated ExcalidrawAutomate script bundle.";
 }
 
+/** Only hoist configuration that cannot depend on bundled bindings or runtime initialization. */
+function isLiteralConfiguration(expression) {
+  if (!expression) return false;
+  if (
+    ts.isAsExpression(expression) ||
+    ts.isSatisfiesExpression(expression) ||
+    ts.isParenthesizedExpression(expression)
+  ) {
+    return isLiteralConfiguration(expression.expression);
+  }
+  if (
+    ts.isLiteralExpression(expression) ||
+    [ts.SyntaxKind.TrueKeyword, ts.SyntaxKind.FalseKeyword, ts.SyntaxKind.NullKeyword].includes(
+      expression.kind,
+    )
+  )
+    return true;
+  if (ts.isPrefixUnaryExpression(expression)) return ts.isNumericLiteral(expression.operand);
+  if (ts.isArrayLiteralExpression(expression))
+    return expression.elements.every(isLiteralConfiguration);
+  if (ts.isObjectLiteralExpression(expression)) {
+    return expression.properties.every(
+      (property) =>
+        ts.isPropertyAssignment(property) &&
+        !ts.isComputedPropertyName(property.name) &&
+        isLiteralConfiguration(property.initializer),
+    );
+  }
+  return false;
+}
+
 /**
  * Treats top-level UPPER_SNAKE_CASE constants as user-editable configuration.
  *
@@ -92,9 +123,14 @@ function moveConfigurationConstants(sourceText) {
 
     const isConfiguration = statement.declarationList.declarations.every(
       (declaration) =>
-        ts.isIdentifier(declaration.name) && /^[A-Z][A-Z0-9_]*$/.test(declaration.name.text),
+        ts.isIdentifier(declaration.name) &&
+        /^[A-Z][A-Z0-9_]*$/.test(declaration.name.text) &&
+        isLiteralConfiguration(declaration.initializer),
     );
-    if (!isConfiguration) {
+    if (
+      !isConfiguration ||
+      statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+    ) {
       continue;
     }
 
@@ -204,6 +240,23 @@ for (const slug of scriptSlugs) {
       sourcefile: entryPoint,
     },
     bundle: true,
+    plugins: [
+      {
+        name: "script-engine-runtime",
+        setup(builder) {
+          builder.onResolve(
+            { filter: /^(obsidian|obsidian-excalidraw-plugin|@zsviczian\/excalidraw)(\/|$)/ },
+            (args) => ({
+              errors: [
+                {
+                  text: `Runtime import of ${args.path} is unavailable in the Script Engine. Use import type for declarations and ea.obsidian / ea methods at runtime.`,
+                },
+              ],
+            }),
+          );
+        },
+      },
+    ],
     outfile: join(scriptOutDir, `${slug}.js`),
     format: "iife",
     platform: "browser",

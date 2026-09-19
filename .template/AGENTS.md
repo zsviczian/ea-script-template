@@ -1,0 +1,39 @@
+# Shared script workspace guidance
+
+- Read the root AGENTS.md and LOCAL_GUIDE.md (and FORK_RULES.md when present).
+  Local repository conventions supplement this shared baseline.
+- Read AUTHORING_GUIDE.md and `.ai/excalidraw-automate/SKILL.md`; use `.ai/excalidraw-automate/references/api-usage-index.md`
+  to find relevant reference scripts before guessing an API.
+- This is a multi-script workspace. Each script belongs under `src/scripts/{slug}/`.
+  Keep main.ts focused on orchestration; put reusable behavior in import-safe
+  modules and cross-script helpers in src/sharedUtils/.
+- The Script Engine injects ea and utils. Obtain runtime Obsidian classes from
+  ea.obsidian; use `import type` for Obsidian and Excalidraw declarations.
+- Prefer EA methods, then ea.getExcalidrawAPI(), then low-level ExcalidrawLib helpers.
+  Use utils.inputPrompt and utils.suggester; cancellation yields undefined.
+- Check the Excalidraw version with ea.verifyMinimumPluginVersion. Check Obsidian
+  with ea.obsidian.requireApiVersion. Do not invent verifyMinAppVersion or renderSidepanel.
+- Treat EA as a stateful workbench: clear, copyViewElementsToEAforEditing, modify
+  getElement(id), then await addElementsToView. Cloning creates new IDs and is for
+  duplicates. Do not mutate immutable scene elements or interleave EA transactions.
+- Use ea.registerCleanup for external listeners, timers, observers, and subscriptions.
+  Its lifetime follows the EA instance. Persistent sidepanels may start with no
+  targetView; bind via setView(view), clear via setView(null), and handle focus changes.
+- Use utils.executionSource for manual/autostart/startup/sidepanel/drawing triggers.
+  Explain permission requests with registerAutostart(message). Action-provider icons
+  are Obsidian/Lucide names, not SVG markup.
+- Use the owning view document/window for UI and validate popouts and physical mobile
+  devices for affected interactions. Use Obsidian modals instead of browser dialogs.
+- Keep script-specific strings together. Follow the local repository's localization
+  policy; the template does not require a particular translation framework.
+- Test meaningful script behavior in import-safe modules, never by importing an
+  executable main.ts. Run npm run check and npm run build after changes, plus relevant
+  local tests. Exercise runtime behavior in Obsidian; typechecking cannot prove it.
+- Generated types in .template/types come from the plugin declaration graph. Never
+  patch them or restore handwritten EA stubs. Fix the source or generator and resync.
+- Template updates must preserve src/scripts, src/sharedUtils, local guidance,
+  repository identity, and custom package keys. Follow .template/README.md. Never
+  resolve all updater conflicts by blindly accepting upstream files.
+- Script publication belongs in obsidian-excalidraw-plugin, not this workspace or
+  ea-script-template: script Markdown, scripts-{slug}.{ext} preview, manual index
+  entry, and directory-info metadata/mtime. Follow CONTRIBUTING.md.

@@ -1,0 +1,66 @@
+{
+  "compilerOptions": {
+    "paths": {
+      "@excalidraw/common": [
+        "../node_modules/@zsviczian/excalidraw/types/common/src/index"
+      ],
+      "@excalidraw/common/*": [
+        "../node_modules/@zsviczian/excalidraw/types/common/src/*"
+      ],
+      "@excalidraw/element": [
+        "../node_modules/@zsviczian/excalidraw/types/element/src/index"
+      ],
+      "@excalidraw/element/*": [
+        "../node_modules/@zsviczian/excalidraw/types/element/src/*"
+      ],
+      "@excalidraw/math": [
+        "../node_modules/@zsviczian/excalidraw/types/math/src/index"
+      ],
+      "@excalidraw/math/*": [
+        "../node_modules/@zsviczian/excalidraw/types/math/src/*"
+      ],
+      "@excalidraw/utils": [
+        "../node_modules/@zsviczian/excalidraw/types/utils/src/index"
+      ],
+      "@excalidraw/utils/*": [
+        "../node_modules/@zsviczian/excalidraw/types/utils/src/*"
+      ],
+      "@zsviczian/excalidraw/common": [
+        "../node_modules/@zsviczian/excalidraw/types/common/src/index"
+      ],
+      "@zsviczian/excalidraw/common/*": [
+        "../node_modules/@zsviczian/excalidraw/types/common/src/*"
+      ],
+      "@zsviczian/excalidraw/element": [
+        "../node_modules/@zsviczian/excalidraw/types/element/src/index"
+      ],
+      "@zsviczian/excalidraw/element/*": [
+        "../node_modules/@zsviczian/excalidraw/types/element/src/*"
+      ],
+      "@zsviczian/excalidraw/math": [
+        "../node_modules/@zsviczian/excalidraw/types/math/src/index"
+      ],
+      "@zsviczian/excalidraw/math/*": [
+        "../node_modules/@zsviczian/excalidraw/types/math/src/*"
+      ],
+      "@zsviczian/excalidraw/utils": [
+        "../node_modules/@zsviczian/excalidraw/types/utils/src/index"
+      ],
+      "@zsviczian/excalidraw/utils/*": [
+        "../node_modules/@zsviczian/excalidraw/types/utils/src/*"
+      ],
+      "@zsviczian/excalidraw": [
+        "../node_modules/@zsviczian/excalidraw/types/excalidraw/index"
+      ],
+      "@zsviczian/excalidraw/*": [
+        "../node_modules/@zsviczian/excalidraw/types/excalidraw/*"
+      ],
+      "@excalidraw/excalidraw/*": [
+        "../node_modules/@zsviczian/excalidraw/types/excalidraw/*"
+      ],
+      "@zsviczian/colormaster/types": [
+        "../node_modules/@zsviczian/colormaster/types/index.d.ts"
+      ]
+    }
+  }
+}

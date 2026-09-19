@@ -31,7 +31,7 @@ The build output already includes the script metadata comment and fenced code bl
 Copy it as-is to preserve formatting:
 
 ```bash
-cp build/{slug}/{slug}.md ../obsidian-excalidraw-plugin/ea-scripts/{Your Script Name}.md
+cp "build/{slug}/{slug}.md" "../obsidian-excalidraw-plugin/ea-scripts/{Your Script Name}.md"
 ```
 
 ### Step 3 - Add a preview image
@@ -96,3 +96,11 @@ npm run build                               # compile
 npm run check                               # typecheck + lint
 npm run package                             # copies build/ -> release/
 ```
+
+## Improving the template
+
+Fork ea-script-template to contribute shared tooling or documentation. Keep
+personal scripts in your own workspace. Refresh the manifest with
+`npm run template:manifest`, then run `npm run test:template`, `npm run check`, and
+`npm run build`. Follow [.template/README.md](.template/README.md) for the plugin
+API generation and downstream update workflow.

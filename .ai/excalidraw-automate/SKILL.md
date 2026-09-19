@@ -19,23 +19,31 @@ Read the information below and respond with I'm ready. The user will then prompt
 - Startup examples: https://github.com/zsviczian/obsidian-excalidraw-plugin/blob/master/docs/AITrainingData/excalidraw-automate/references/startup-scripts.md
 
 In addition to ExcalidrawAutomate, you can also use two other sources of functions:
-- The Excalidraw API available via `ea.getExcalidrawAPI()`. Note: the API is only available if `ea.targetView` is set. When running Excalidraw scripts using the script engine, the provided `ea` object is already set up with targetView by default. Otherwise you need to first run `ea.setView()`.
+- The Excalidraw API available via `ea.getExcalidrawAPI()`. Note: the API is only available if `ea.targetView` is set. When running Excalidraw scripts using the script engine, the provided `ea` object is already set up with targetView by default. Otherwise call `ea.setView()` to select a sensible default or `ea.setView(view)` to bind explicitly. Calling `ea.setView(null)` deliberately clears `targetView`; it does not auto-select another drawing.
 - `window.ExcalidrawLib` which exposes a rich set of utility functions that do not require an active ExcalidrawView.
 
 **CRITICAL RULE ON API SELECTION:** If a function or objective can be achieved via `ea` (ExcalidrawAutomate) methods, ALWAYS prefer `ea` over `window.ExcalidrawLib`. `ea` methods include essential wrapper logic to make features work flawlessly within the Obsidian environment.
 
 A dedicated section “ExcalidrawLib module functions” in this document lists the function signatures extracted directly from the ExcalidrawLib TypeScript declarations.
 
+- **Never use native browser dialogs in scripts:** Do not use `window.confirm`, `window.alert`, `window.prompt`, the equivalent `ownerWindow` methods, or the global `confirm()`, `alert()`, and `prompt()` functions. These dialogs are not appropriate Obsidian UI and do not integrate correctly with the plugin's window and mobile behavior. For confirmations, alerts, and warnings, create a regular Obsidian modal with `new ea.obsidian.Modal(ea.plugin.app)` (not `FloatingModal`), render the message and buttons in `contentEl`, and resolve the result from the modal's button callbacks or `onClose` handler. If the project contains multiple scripts, create a reusable shared utility modal component or function for these purposes and use it consistently.
 - When the user asks for a dialog window, by default create a FloatingModal. Do not extend the FloatingModal class. Instead, define the modal's behavior by creating a new instance (e.g., `const modal = new ea.FloatingModal(...)`) and then assigning functions directly to the `onOpen` and `onClose` properties of that instance.
 For a reference, follow the implementation pattern used in the "Printable Layout Wizard.md" script.
 - Elements have a `customData` property that can be used to store arbitrary data. To ensure the data the script adds to elements use the `ea.addAppendUpdateCustomData` function. This function ensures that existing customData is preserved when adding new data.
 - Elements can be hidden by setting their opacity to 0. When hiding elements this way, it is good practice to temporarily store their original opacity in customData. This allows for easy restoration of the original opacity later.
 - Elements can be deleted from the scene by setting their isDeleted property to true.
 - The Obsidian.md module is available on `ea.obsidian`.
+- Version checks are distinct: use `ea.verifyMinimumPluginVersion()` for the Excalidraw plugin and `ea.obsidian.requireApiVersion()` only for the Obsidian application version.
+- `utils.executionSource` describes why the current top-level invocation happened. Supported values are `"manual"`, `"plugin-startup"`, `"view-autostart"`, `"sidepanel-restore"`, `"sidepanel-reload"`, and `"drawing-onload"`. It does not indicate whether code came from the compilation cache or whether the script has run before.
+- `ea.registerAutostart(message?)` requests view-autostart permission. The script is automatically attached once to each ExcalidrawView, while manual toolbar/command/hotkey invocation remains independently repeatable. The optional explanation appears as the second paragraph of the permission prompt; do not imply that the script's main interactive action starts automatically when only its tools/providers do.
+- `ea.registerCleanup(cleanup)` registers synchronous cleanup owned by the current EA instance. Use it for external listeners, timers, observers, and subscriptions; the cleanup runs when that EA is destroyed.
+- `ea.registerElementActionProvider()` action descriptors take an Obsidian/Lucide icon name such as `"presentation"`, not serialized SVG markup. For buttons a script renders itself, obtain the SVG with `ea.obsidian.getIcon()` and recreate it in the button's owning document when popout support matters.
+- When an Excalidraw API method requires an element, pass the known typed scene element. For example, call `api.startLineEditor(line, pointIndices)`; do not re-read selection state when the intended line is already known.
+- For persistent workbench mutations, await `ea.addElementsToView()` with saving enabled (the default). Prefer this public EA save path over unpublished methods on `ea.targetView`.
 
 **Sidepanels and multi-view tooling:**
 - Sidepanels are for scripts that must stay open while users hop between multiple Excalidraw views. They should implement the SidepanelTab hooks (`onOpen`, `onFocus(view)`, `onClose`, `onExcalidrawViewClosed`) and manage their own `ea.targetView` explicitly.
-- Persisted sidepanel scripts are launched during plugin startup (e.g., Obsidian restart, plugin update) with `ea.targetView === null`. Scripts must handle this by deferring view-bound work until `onFocus` delivers a view; call `ea.setView(view)` when you decide to bind.
+- Persisted sidepanel scripts are restored lazily when the Excalidraw sidepanel initializes (often during startup, but not necessarily) with `ea.targetView === null`. Scripts must handle this by deferring view-bound work until `onFocus` delivers a view; call `ea.setView(view)` when you decide to bind. When `onFocus` supplies `null` or focus moves to a non-Excalidraw view, call `ea.setView(null)` to make the unbound state explicit and prevent later view operations from targeting a stale drawing.
 - Each `ea` instance may host a single `sidepanelTab`. This sidepanel tab is stored in `ea.sidepanelTab`. Create the tab with `ea.createSidepanelTab(title, persist=false, reveal=true)`; the returned `ea.sidepanelTab` exposes `contentEl`, `setContent`, `setTitle`, `setDisabled`, `setCloseCallback`, `open/close`, and focus lifecycle hooks. Note auto-reveal during tab creation via `ea.createSidepanelTab()` is disabled during plugin startup. You can reveal a tab with `ea.sidepanelTab?.open()`. You can persist with `ea.persistSidepanelTab()` (tabs are restored and scripts re-run on next startup). Close with `ea.sidepanelTab?.close()`.
 - Mobile UX: sidepanels slide in without disturbing canvas layout and are better for longer forms than floating modals. Prefer them for complex inputs, especially on phones.
 - Auto-closing patterns: For scripts that use sidepanels but perform operations that are single-`ExcalidrawView` relevant, they can call `ea.closeSidepanelTab()` after completing the operation, and/or inside `ea.sidepanelTab.onFocus = (view) => { if (view !== ea.targetView) { ea.sidepanelTab?.close(); } }` to shut down when the user leaves the originating view.
@@ -73,20 +81,40 @@ To keep this training file concise, large external type definitions are not incl
 
 #### **1. The Core Workflow: Handling Element Immutability**
 
-*   **Central Rule:** Elements in the Excalidraw scene are immutable and should never be modified directly. Always use the ExcalidrawAutomate (EA) "workbench" pattern for modifications.
+*   **Central Rule:** Elements returned from the Excalidraw scene are immutable and should never be modified directly. EA owns a stateful, in-memory "workbench" (`elementsDict` and `imagesDict`) where a script stages one coherent persistent or temporary operation independently of the scene.
 *   **The Workflow:**
-    1.  Get elements from the current view using `ea.getViewElements()` or `ea.getViewSelectedElements()`.
-    2.  Copy these elements into the EA workbench for editing using `ea.copyViewElementsToEAforEditing(elements)`.
-    3.  Modify the properties of the element copies that are now in the EA workbench (e.g., `ea.getElement(id).locked = true;`).
-    4.  Commit the changes back to the scene using `await ea.addElementsToView()`.
+    1.  Start an independent transaction with `ea.clear()`. This clears only the workbench; it does not delete scene elements or reset style.
+    2.  Read existing scene elements using `ea.getViewElements()` or `ea.getViewSelectedElements()`.
+    3.  To work with mutable copies of those same scene elements, copy them into the workbench with `ea.copyViewElementsToEAforEditing(elements)`. Their IDs are preserved.
+    4.  Modify the workbench copies retrieved by their original IDs (e.g., `ea.getElement(id).locked = true;`).
+    5.  For a persistent scene edit, commit once with `await ea.addElementsToView()`; saving is enabled by default. For temporary transformations such as export or preview preparation, pass the workbench elements to the relevant EA operation without committing them to the scene.
+    6.  Call `ea.clear()` after the operation to discard the workbench copies, preferably in a `finally` block when an awaited operation can fail.
+*   **Temporary workbench example:**
+    ```javascript
+    ea.clear();
+    try {
+      const sceneElements = ea.getViewElements();
+      ea.copyViewElementsToEAforEditing(sceneElements);
+      ea.getElement(pathId).opacity = 0;
+      // elementsOverride replaces the export scene, so pass the complete workbench.
+      const svg = await ea.createViewSVG({ elementsOverride: ea.getElements() });
+      // Use svg. The live scene was never changed.
+    } finally {
+      ea.clear();
+    }
+    ```
+*   **`elementsOverride` is a complete replacement:** In `createViewSVG()` and `createViewPNG()`, this option replaces the view's element array; it is not merged with the scene and is not a patch by element ID. The array must contain every element that should appear in the image. When temporarily modifying an existing scene for export, copy the complete desired export set into EA, modify the workbench copy, and pass `ea.getElements()` as the override.
+*   **Use `exportArea` for bounded view exports:** Both view export methods accept `exportArea: {x, y, width, height}`. EA filters the candidate elements with the same logic exposed as `getElementsIntersectionArea()` (and its backward-compatible `getElementsInArea()` alias), retains required bound elements, and anchors the result to that exact viewport. This prevents a small preview or PDF page from retaining every image in a large scene.
+*   **Identity is the boundary:** `copyViewElementsToEAforEditing()` is the standard way to obtain mutable, identity-preserving copies of existing scene elements for both persistent edits and temporary EA operations. By contrast, `ea.cloneElement()` and `ea.cloneElements()` deliberately generate new IDs and are only for creating genuine duplicate scene elements. Never use them to obtain editable workbench copies of existing elements.
+*   **One workbench transaction at a time:** The workbench is shared mutable state on an EA instance. Do not interleave asynchronous preview/export preparation and scene mutation through the same workbench. Await the operation, then clear the workbench before starting another transaction.
 *   **Deletion:** To delete an element, set its `isDeleted` property to `true` on the workbench copy (`ea.getElement(id).isDeleted = true;`) and then commit with `await ea.addElementsToView()`.
-*   **Cleanup:** Use `ea.clear()` at the beginning of a script if you are creating a completely new set of elements, to ensure the EA workbench is empty and doesn't contain artifacts from a previous run.
 
 #### **2. User Interaction: Prompts and Dialogs**
 
 *   **Simple Input:** For straightforward user input, use the `utils` object provided to the script.
     *   `await utils.inputPrompt()`: To get a string or number from the user.
     *   `await utils.suggester()`: To let the user select from a predefined list of options.
+*   **Confirmations, Alerts, and Warnings:** Never use native browser dialogs such as `window.confirm()`, `window.alert()`, `window.prompt()`, `ownerWindow.confirm()`, or their global equivalents. Use a regular Obsidian modal instead: `const modal = new ea.obsidian.Modal(ea.plugin.app)`. Render the message and explicit action buttons in `modal.contentEl`, then resolve the user's choice from the button callbacks or `onClose`. Do not use `FloatingModal` for these simple confirmation or alert/warning dialogs. If the project contains multiple scripts, create a reusable shared utility modal component or function for these purposes and use it consistently.
 *   **Complex Dialogs:** When a more complex UI with multiple controls is needed, create a floating dialog window.
     *   **Use `FloatingModal`:** Always create a new instance: `const modal = new ea.FloatingModal(ea.plugin.app);`.
     *   **Do Not Extend:** Do not use `class MyModal extends ea.FloatingModal`.
@@ -134,11 +162,27 @@ To keep this training file concise, large external type definitions are not incl
     *   To permanently remove an element from the scene, set `element.isDeleted = true`.
 *   **Image Handling:** When dealing with image elements, use `ea.getViewFileForImageElement(imageElement)` to get the corresponding `TFile` from the Obsidian vault. This is necessary for any logic that needs to read or manipulate the source image file.
 
+#### **6.1. Tests in a Multi-Script Workspace**
+
+*   **Tests are part of implementation:** Add or update focused automated tests for behavior changes. When fixing a regression, reproduce it with a failing test first when practical.
+*   **Co-locate by ownership:** Put script tests in `src/scripts/{slug}/__tests__/*.test.ts` and shared utility tests in `src/sharedUtils/__tests__/*.test.ts`. Do not maintain a separate root test tree that mirrors dozens of scripts.
+*   **Never import executable entrypoints:** `main.ts` runs immediately against the globals injected by Obsidian. Keep it as a thin bootstrap and move testable orchestration to `run.ts` or another import-safe module.
+*   **Use the universal runner:** Use Vitest. Run a focused suite while iterating, then run `npm run check`; the repository gate includes TypeScript, ESLint, and all test suites. Use `npm run test:watch` for continuous feedback.
+*   **Test behavior, not bundler details:** Prefer pure domain functions and narrow fakes for `ea`, the Excalidraw API, Obsidian globals, timers, and DOM boundaries. Build and perform an Obsidian smoke test for integration behavior automation cannot prove.
+
+#### **6.2. Per-Script Localization**
+
+*   **Catalogs belong to the script:** Store strings in `src/scripts/{slug}/lang/`, with one file per locale. Never create one language catalog shared across unrelated scripts.
+*   **English defines the contract:** `lang/en.ts` is the typed source of truth. Maintain `de.ts`, `es.ts`, `fr.ts`, `ru.ts`, and `zh-cn.ts`; incomplete reviewed catalogs may rely on English fallback.
+*   **Use the shared helper:** Register catalogs in `lang/index.ts` with `createTranslator`. Resolve the locale with `ea.obsidian.moment.locale()` and pass the translator into import-safe script logic.
+*   **Interpolate by name:** Use placeholders such as `{count}` instead of string concatenation. Do not use dynamically constructed regular expressions for interpolation.
+*   **Keep UI copy out of logic:** Add user-visible strings to the script catalog rather than embedding them in controllers, runners, or helpers.
+
 #### **7. SVG and Image Export Approaches**
 Generating images (SVG/PNG) requires specific approaches depending on the context. Follow these three rules strictly to avoid performance issues and missing assets:
 1. **Exporting elements currently in the EA workbench:** Use `await ea.createSVG(null, ...)` or `await ea.createPNG(null, ...)` (passing `null` as the `templatePath`).
 2. **Exporting an Excalidraw file that is NOT currently open:** Pass the file path as the template to `createSVG` or `createPNG` (e.g., `await ea.createSVG(file.path, ...)`). This is the most reliable approach as ExcalidrawAutomate natively handles loading the scene, resolving embedded images, and instantiating loaders behind the scenes. **Do NOT attempt to manually read the file, reconstruct the scene, or load images into memory.**
-3. **Exporting the currently active `ExcalidrawView`:** Use `await ea.createViewSVG(...)`. This is specifically for the open view. You can use the `elementsOverride` parameter to inject temporary elements (like transparent sizing rectangles) into the exported image without modifying the actual scene.
+3. **Exporting the currently active `ExcalidrawView`:** Use `await ea.createViewSVG(...)` for vector output or `await ea.createViewPNG(...)` for raster output. Their `elementsOverride` parameter is a complete replacement for the exported element array, not an additive injection or patch by ID. Use `exportArea` when only a rectangular viewport is needed; it filters out off-area elements and their unused image payloads instead of exporting the full scene and merely changing the SVG viewBox. For temporary changes, copy the complete desired export set into the EA workbench, modify it there, and pass `ea.getElements()`.
 
 #### **8. Custom Pens and Perfect Freehand**
 

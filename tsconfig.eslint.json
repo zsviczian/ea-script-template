@@ -13,5 +13,6 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src/**/*", "scripts/**/*", "examples/**/*"]
+  "include": ["src/**/*", "scripts/**/*", "examples/**/*"],
+  "extends": "./.template/tsconfig.paths.json"
 }

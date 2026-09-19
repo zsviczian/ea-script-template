@@ -3,36 +3,52 @@
   "version": "1.0.0",
   "description": "Professional starter template for building ExcalidrawAutomate scripts for Obsidian Excalidraw",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "node esbuild.config.mjs",
-    "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\"",
-    "lint:fix": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" --fix",
-    "format": "prettier --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" \"*.md\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" \"*.md\"",
+    "lint": "eslint --no-error-on-unmatched-pattern \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\"",
+    "lint:fix": "eslint --no-error-on-unmatched-pattern \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" --fix",
+    "format": "prettier --no-error-on-unmatched-pattern --write \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" \"*.md\"",
+    "format:check": "prettier --no-error-on-unmatched-pattern --check \"src/**/*.ts\" \"scripts/**/*.ts\" \"examples/**/*.ts\" \"*.md\"",
     "typecheck": "tsc --noEmit",
     "check": "npm run typecheck && npm run lint",
     "package": "npm run build && node scripts/package.mjs",
-    "new-script": "tsx scripts/new-script.ts",
+    "new-script": "node --import tsx scripts/new-script.ts",
     "sync-refs": "node scripts/sync-refs.mjs",
     "repo:export": "node scripts/generate-repository-zip.mjs",
-    "repo:update": "node scripts/update-repository.mjs"
+    "repo:update": "node scripts/update-repository.mjs",
+    "update-template": "node scripts/update-template.mjs",
+    "template:manifest": "node scripts/template-manifest.mjs",
+    "test:template": "node --test tests/*.test.mjs"
   },
   "devDependencies": {
-    "@zsviczian/excalidraw": "^0.18.129",
+    "@zsviczian/excalidraw": "0.18.137",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.10.0",
     "globals": "^15.0.0",
     "obsidian": "^1.13.1",
-    "obsidian-excalidraw-plugin": "github:zsviczian/obsidian-excalidraw-plugin",
     "prettier": "^3.0.0",
     "tsx": "^4.0.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "@types/react": "19.2.18",
+    "@excalidraw/mermaid-to-excalidraw": "2.2.2",
+    "@codemirror/language": "6.11.0",
+    "@codemirror/commands": "6.8.1",
+    "@codemirror/state": "6.5.0",
+    "@codemirror/view": "6.38.6",
+    "@zsviczian/colormaster": "^1.2.2",
+    "@types/node": "^22.19.19"
   },
-  "keywords": ["obsidian", "excalidraw", "excalidraw-automate", "script-template"],
+  "keywords": [
+    "obsidian",
+    "excalidraw",
+    "excalidraw-automate",
+    "script-template"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "private": true
 }

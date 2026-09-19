@@ -1,172 +1,85 @@
-# ea-script-template
+# ExcalidrawAutomate script workspace
 
-Professional workspace template for building and maintaining multiple ExcalidrawAutomate scripts in one repository.
+Create and maintain multiple scripts for the Obsidian Excalidraw Script Engine.
 
-## Template or Fork?
+## Start your own repository
 
-Use this repository as a template when:
+Select **Use this template → Create a new repository** on GitHub, then clone **your
+new repository**. This is the recommended route for your own script collection.
+Fork the template when you want to contribute improvements to the template itself.
+Both support `npm run update-template`; shared Git history is not required.
 
-- you want one workspace containing many scripts
-- you want shared lint/build/tooling and shared utilities
-- you are building script PRs for obsidian-excalidraw-plugin
+Use Node 22.13 or newer and npm:
 
-Fork this repository when:
-
-- you want to publish your own long-lived script workspace publicly
-- you need to customize lint/build/release policy while retaining this baseline
-
-Create one repo per script only when strict isolation is required.
-
-## Quick start
-
-```bash
-git clone https://github.com/zsviczian/ea-script-template.git my-ea-scripts
-cd my-ea-scripts
+```sh
+git clone https://github.com/YOUR-NAME/YOUR-SCRIPTS.git
+cd YOUR-SCRIPTS
 npm install
+npm run new-script -- --name "My Script"
+npm run check
 npm run build
 ```
 
-Build output lands in a shared folder with one subfolder per script:
+Each `src/scripts/{slug}/main.ts` builds to `build/{slug}/{slug}.md`, accompanied by
+its preview SVG. Copy the script into the vault folder configured under
+**Excalidraw settings → Script Engine** and run it from an Excalidraw drawing.
+Build output is executable JavaScript stored as Markdown, not an Obsidian plugin.
+No runtime npm imports are available in the Script Engine.
 
-```text
-build/{script-slug}/{script-slug}.md
-build/{script-slug}/{script-slug}.svg
+## Keep up to date
+
+```sh
+npm run update-template -- --check
+npm run update-template
+npm install
+npm run check
+npm run build
 ```
 
-Script extension semantics in Obsidian Excalidraw (since plugin 2.27.0):
+Updates bring shared tooling, EA types, and agent references from the template's
+`master`, preserving your scripts, helpers, repository identity, and custom guidance.
+Conflicting customizations stop the update for review.
 
-- both `.js` and `.md` script files are supported
-- if both extensions exist for the same script name, `.md` takes precedence
-- this template emits `.md` so scripts remain easy to view and edit in Obsidian's markdown editor
+Read **[the update guide](.template/README.md)** for file ownership, conflict
+resolution, adopting the updater in an older repository, and the maintainer's
+plugin → template → personal repository workflow.
 
-Generated scripts start with a purpose comment, followed by editable top-level `UPPER_SNAKE_CASE` configuration constants, then the bundled script.
+## Layout
 
-## Recommended workspace layout
-
-```text
-ea-script-template/
-├── src/
-│   ├── scripts/
-│   │   ├── minimal-starter/
-│   │   │   ├── main.ts
-│   │   │   └── preview.svg
-│   │   ├── color-palette-picker/
-│   │   │   ├── main.ts
-│   │   │   └── preview.svg
-│   │   └── script-n/
-│   │       ├── main.ts
-│   │       └── preview.svg
-│   ├── sharedUtils/
-│   │   └── notice.ts
-│   └── types/
-│       └── ea.d.ts
-├── build/                  # generated, one folder per script slug
-├── release/                # packaged output copied from build/
-├── scripts/
-│   ├── new-script.ts
-│   ├── package.mjs
-│   └── sync-refs.mjs
-├── AGENTS.md
-├── CLAUDE.md
-└── .ai/
-	└── excalidraw-automate/
-```
+- `src/scripts/{slug}/`: your script entrypoint, modules, preview, and optional README,
+  tests, and translations. The two included scripts are removable starter examples.
+- `src/sharedUtils/`: your reusable script helpers.
+- `src/types/ea.d.ts`: injected globals backed by generated API declarations.
+- `examples/`: additional authoring examples; not built automatically.
+- `.template/`: upstream guidance, generated types, and update metadata.
+- `.ai/excalidraw-automate/`: local API documentation and agent reference examples.
+- `scripts/`: development tools. `repo:update` imports files returned by a chat;
+  **`update-template`** receives upstream template improvements.
+- `build/`, `release/`: generated output, never source files.
 
 ## Commands
 
-| Command                                    | Description                                                                                                                                                                                        |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run build`                            | Discovers `src/scripts/*/main.ts` and emits `build/{slug}/{slug}.md` plus `build/{slug}/{slug}.svg`                                                                                                |
-| `npm run package`                          | Copies all built script artefacts into `release/{slug}/`                                                                                                                                           |
-| `npm run new-script -- --name "My Script"` | Creates `src/scripts/{slug}/main.ts` and `preview.svg`                                                                                                                                             |
-| `npm run check`                            | Typecheck + lint                                                                                                                                                                                   |
-| `npm run sync-refs`                        | Copies the full generated skill snapshot from sibling `obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate/` into `.ai/excalidraw-automate/` and renames reference scripts to `.js` |
-| `npm run repo:export`                      | Creates `repository.zip` from the current repository for upload to ChatGPT, excluding generated, binary, dependency, and other ignored files                                                       |
-| `npm run repo:update`                      | Copies the contents of `~/Downloads/update/` into the repository, preserving the returned repository-relative paths                                                                                |
+| Command | Purpose |
+| --- | --- |
+| `npm run new-script -- --name "My Script"` | Scaffold a script and preview |
+| `npm run check` | Typecheck and lint |
+| `npm run build` | Bundle every script independently |
+| `npm run package` | Build and copy artifacts into release/ |
+| `npm run update-template -- --check` | Preview an upstream template update |
+| `npm run update-template` | Apply a reviewed update |
+| `npm run test:template` | Verify updater behavior and API typing |
+| `npm run repo:export` | Export repository.zip for a chat session |
+| `npm run repo:update` | Import returned files from ~/Downloads/update/ |
+| `npm run sync-refs` | Maintainers only: refresh from a sibling plugin checkout |
 
-## ChatGPT development workflow
+For chat-based edits, upload `repository.zip`, request only changed files with
+repository-relative paths, extract them into `~/Downloads/update/`, then run
+`repo:update`. This overwrites returned paths; review the diff and run check/build.
+`REPO_UPDATE_DIR` overrides the import directory.
 
-With a ChatGPT Plus subscription you get unlimited chat, plus a limited CODEX quota. If you need to balance your CODEX coding agent budget, this workflow comes in handy for design runs and for simple changes and development work.
+Read [AUTHORING_GUIDE.md](AUTHORING_GUIDE.md) before authoring and
+[CONTRIBUTING.md](CONTRIBUTING.md) before submitting scripts to the plugin library.
+Customize this README for your collection. Put repository-specific agent rules in
+[LOCAL_GUIDE.md](LOCAL_GUIDE.md); upstream rules live in [.template/AGENTS.md](.template/AGENTS.md).
 
-The repository includes two platform-independent helper commands for working on scripts with ChatGPT on macOS or Windows.
-
-1. From the repository root, create an uploadable snapshot:
-
-   ```bash
-   npm run repo:export
-   ```
-
-   This creates `repository.zip`.
-
-2. Upload `repository.zip` to your ChatGPT Plus chat and ask the agent to develop, fix, or modify the script.
-
-3. When asking ChatGPT to return changes, ask it to:
-
-   > Return only the modified files in a ZIP, preserving the repository-relative folder structure.
-
-   For example, if ChatGPT changes `src/scripts/my-script/main.ts`, the downloaded ZIP should contain:
-
-   ```text
-   src/
-   └── scripts/
-       └── my-script/
-           └── main.ts
-   ```
-
-   This is important because `repo:update` copies the returned files back into their matching locations in the repository.
-
-4. Download the ZIP returned by ChatGPT, extract its contents into:
-
-   ```text
-   ~/Downloads/update/
-   ```
-
-5. From the repository root, apply the returned files:
-
-   ```bash
-   npm run repo:update
-   ```
-
-6. Review the changes and run the normal validation commands, for example:
-
-   ```bash
-   npm run check
-   npm run build
-   ```
-
-`repo:update` overwrites files that are present in the update folder but does not delete unrelated repository files. If needed, the update source folder can be overridden with the `REPO_UPDATE_DIR` environment variable.
-
-## Publishing model
-
-This template supports multiple scripts in one workspace, but publication is still script-by-script.
-
-For each script PR to obsidian-excalidraw-plugin:
-
-- copy `build/{slug}/{slug}.md` into `ea-scripts/{Script Name}.md`
-- copy or export preview image using `scripts-{slug}.{ext}` naming
-- update `ea-scripts/index-new.md` manually
-- update `ea-scripts/directory-info.json` including `mtime` for updates
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for full details.
-
-## Agent auto-discovery
-
-This repository includes agent guidance surfaces:
-
-- [AGENTS.md](./AGENTS.md) for cross-agent behavior and workflow constraints
-- [CLAUDE.md](./CLAUDE.md) for implementation architecture notes
-- [.ai/excalidraw-automate/SKILL.md](./.ai/excalidraw-automate/SKILL.md) plus local references and script examples synchronized from plugin outputs
-
-## Development dependencies
-
-The template includes dev dependencies for:
-
-- Obsidian typings/runtime interfaces via `obsidian`
-- Excalidraw type surface via `@zsviczian/excalidraw`
-- Direct plugin repository access via `obsidian-excalidraw-plugin` Git dependency for reference workflows
-
-These are for authoring and type/reference workflows, not runtime script execution inside Obsidian.
-
-## License
-
-MIT. See [LICENSE](./LICENSE).
+MIT. See [LICENSE](LICENSE).

@@ -5,7 +5,7 @@
  *   recolours every selected element's stroke and fill to match.
  *
  *   This example shows:
- *   - Using ea.suggestionPrompt for structured user input
+ *   - Using utils.suggester for structured user input
  *   - Staging elements in the EA workbench before writing to the scene
  *   - Keeping UI strings in a constants object
  *   - Breaking the work into small, documented functions
@@ -45,11 +45,11 @@ const PALETTES: Record<string, { stroke: string; fill: string }[]> = {
 /**
  * Prompts the user to select a palette name.
  *
- * @returns The chosen palette name, or null if cancelled.
+ * @returns The chosen palette name, or undefined if cancelled.
  */
-async function choosePalette(): Promise<string | null> {
-  return ea.suggestionPrompt(
-    `${SCRIPT_NAME} — Choose a palette`,
+async function choosePalette(): Promise<string | undefined> {
+  return utils.suggester(
+    Object.keys(PALETTES),
     Object.keys(PALETTES),
     "Arrow keys to navigate, Enter to select.",
   );
@@ -62,16 +62,16 @@ async function choosePalette(): Promise<string | null> {
  * @param colours   Colour pairs from the chosen palette.
  */
 function applyPalette(
-  elements: ExcalidrawElement[],
+  elements: ReturnType<ExcalidrawAutomate["getElement"]>[],
   colours: { stroke: string; fill: string }[],
 ): void {
   elements.forEach((el, index) => {
     // noUncheckedIndexedAccess widens the type to T | undefined; the modulo
     // guarantees the index is always in-bounds, so the non-null assertion is safe.
     const colour = colours[index % colours.length] as { stroke: string; fill: string };
-    // Cast needed because ExcalidrawElement is mutable during scene update
-    (el as Record<string, unknown>)["strokeColor"] = colour.stroke;
-    (el as Record<string, unknown>)["backgroundColor"] = colour.fill;
+    // These are editable EA workbench copies.
+    el.strokeColor = colour.stroke;
+    el.backgroundColor = colour.fill;
   });
 }
 
@@ -82,43 +82,47 @@ function applyPalette(
 /** Entry point called by the Excalidraw Script Engine. */
 async function main(): Promise<void> {
   if (!ea.verifyMinimumPluginVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new ea.obsidian.Notice("This script requires Excalidraw 2.0.0 or newer.");
     return;
   }
 
   const selected = ea.getViewSelectedElements();
   if (selected.length === 0) {
-    new Notice(`${SCRIPT_NAME}: Please select at least one element.`);
+    new ea.obsidian.Notice(`${SCRIPT_NAME}: Please select at least one element.`);
     return;
   }
 
   const paletteName = await choosePalette();
   if (!paletteName) {
-    new Notice(`${SCRIPT_NAME}: Cancelled.`);
+    new ea.obsidian.Notice(`${SCRIPT_NAME}: Cancelled.`);
     return;
   }
 
   const colours = PALETTES[paletteName];
   if (!colours) {
-    new Notice(`${SCRIPT_NAME}: Unknown palette "${paletteName}".`);
+    new ea.obsidian.Notice(`${SCRIPT_NAME}: Unknown palette "${paletteName}".`);
     return;
   }
 
   const api = ea.getExcalidrawAPI();
   if (!api) {
-    new Notice(`${SCRIPT_NAME}: Could not obtain Excalidraw API.`);
+    new ea.obsidian.Notice(`${SCRIPT_NAME}: Could not obtain Excalidraw API.`);
     return;
   }
 
-  // Work on a mutable copy; never mutate the live scene array directly
-  const mutableElements = api.getSceneElements().map((el) => ({ ...el }));
-  const selectedIds = new Set(selected.map((el) => el.id));
-  const targets = mutableElements.filter((el) => selectedIds.has(el.id));
-
+  ea.clear();
+  ea.copyViewElementsToEAforEditing(selected);
+  const targets = selected.map((element: ExcalidrawElement) =>
+    ea.getElement(element.id),
+  );
   applyPalette(targets, colours);
-
-  api.updateScene({ elements: mutableElements as ExcalidrawElement[] });
-  new Notice(`${SCRIPT_NAME}: Applied "${paletteName}" palette to ${targets.length} element(s).`);
+  await ea.addElementsToView(false, true);
+  ea.clear();
+  new ea.obsidian.Notice(
+    `${SCRIPT_NAME}: Applied "${paletteName}" palette to ${targets.length} element(s).`,
+  );
 }
 
 void main();
+
+export {};

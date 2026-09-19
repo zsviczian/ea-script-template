@@ -11,11 +11,13 @@
 /** Entry point called by the Excalidraw Script Engine. */
 async function main(): Promise<void> {
   if (!ea.verifyMinimumPluginVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new ea.obsidian.Notice("This script requires Excalidraw 2.0.0 or newer.");
     return;
   }
 
-  new Notice("Hello from your EA script! 🎉");
+  new ea.obsidian.Notice("Hello from your EA script! 🎉");
 }
 
 void main();
+
+export {};

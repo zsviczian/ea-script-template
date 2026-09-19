@@ -6,6 +6,7 @@
  *   ../obsidian-excalidraw-plugin/docs/AITrainingData/excalidraw-automate
  */
 
+import { execFileSync } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
@@ -150,3 +151,7 @@ Update source content by running npm run doc in the plugin repository.
 
 console.log(`Synced full skill snapshot from ${sourceRoot}`);
 console.log(`Updated local workspace skill package at ${targetRoot}`);
+
+// Maintainer-only refresh: generate types from the same plugin checkout as the docs.
+execFileSync(process.execPath, [join(pluginRoot, "scripts/sync-script-template-types.mjs"), templateRoot], { stdio: "inherit" });
+execFileSync(process.execPath, [join(templateRoot, "scripts/template-manifest.mjs")], { stdio: "inherit" });

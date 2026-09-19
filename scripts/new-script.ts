@@ -135,7 +135,7 @@ export async function run${funcName}(
  */
 async function main(): Promise<void> {
   if (!ea.verifyMinimumPluginVersion("2.0.0")) {
-    new Notice("This script requires Excalidraw 2.0.0 or newer.");
+    new ea.obsidian.Notice("This script requires Excalidraw 2.0.0 or newer.");
     return;
   }
 
@@ -181,6 +181,10 @@ if (!name) {
 }
 
 const slug = toSlug(name);
+if (!slug) {
+  console.error("The script name must contain at least one letter or digit.");
+  process.exit(1);
+}
 const funcName = toPascalCase(slug);
 const scriptDir = join(process.cwd(), "src", "scripts", slug);
 const mainPath = join(scriptDir, "main.ts");

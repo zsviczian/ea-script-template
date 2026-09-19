@@ -6,7 +6,7 @@
 /* ************************************** */
 type MutableElementMapEntry = Mutable<ExcalidrawElement> & Record<string, unknown>;
 import { PageDimensions, PageOrientation, PageSize, PDFExportScale, PDFPageProperties, ExportSettings } from "src/types/exportUtilTypes";
-import { FrameRenderingOptions, PaneTarget } from "src/types/utilTypes";
+import { PaneTarget } from "src/types/utilTypes";
 import { AutoexportConfig } from "src/types/excalidrawViewTypes";
 import { FloatingModal } from "./Dialogs/FloatingModal";
 import { ExcalidrawSidepanelTab } from "src/view/sidepanel/SidepanelTab";
@@ -18,10 +18,12 @@ type ExcalidrawAutomateHelpTarget = ((...args: unknown[]) => unknown) | string;
 /**
  * ExcalidrawAutomate is a utility class that provides a simplified API to interact with Excalidraw elements and the Excalidraw canvas.
  * Elements in the Excalidraw Scene are immutable. You should never directly change element properties in the scene object.
- * ExcalidrawAutomate provides a "workbench" where you can create, modify, and delete elements before committing them to the Excalidraw Scene.
- * The basic workflow is to create elements in ExcalidrawAutomate and once ready commit them to the Excalidraw Scene using addElementsToView().
- * To modify elements in the scene, you should first copy them over to EA using copyViewElementsToEAforEditing, make the necessary modifications,
- * then commit them back to the scene using addElementsToView().
+ * ExcalidrawAutomate provides a stateful, in-memory "workbench" where you can create, modify, and delete elements independently of the Excalidraw Scene.
+ * Begin each independent transaction with clear(). To modify existing scene elements while preserving their identity, copy them to the workbench with
+ * copyViewElementsToEAforEditing() and modify the copies returned by getElement(originalId). Commit persistent edits with addElementsToView(),
+ * or use the modified workbench elements for a temporary EA operation such as export and then discard them with clear() without committing.
+ * cloneElement() and cloneElements() deliberately generate new IDs and are only for creating genuine duplicates, never for editing an existing scene element.
+ * Do not interleave asynchronous operations that mutate the same EA workbench; await the operation, then clear before starting another transaction.
  * To delete an element from the view set element.isDeleted = true and commit the changes to the scene using addElementsToView().
  *
  * At a very high level, EA has 3 type of functions:
@@ -339,7 +341,17 @@ export declare class ExcalidrawAutomate {
     };
     colorPalette: object;
     sidepanelTab: ExcalidrawSidepanelTab | null;
+    private cleanupCallbacks;
+    private destroyed;
     constructor(plugin: ExcalidrawPlugin, view?: ExcalidrawView);
+    /**
+     * Registers synchronous cleanup owned by this EA instance. Use this for
+     * external listeners, observers, timers, and subscriptions that EA cannot
+     * release itself. Cleanup runs when this EA is destroyed.
+     * @param cleanup - Synchronous cleanup callback.
+     * @returns A function that unregisters this callback without running it.
+     */
+    registerCleanup(cleanup: () => void): () => void;
     /**
      * Return the active sidepanel tab for a script, if one exists.
      * If scriptName is omitted the function checks ea.activeScript.
@@ -599,30 +611,28 @@ export declare class ExcalidrawAutomate {
         pageProps?: PDFPageProperties;
         filename: string;
     }): Promise<void>;
+    private prepareViewImageExport;
     /**
      * Creates an SVG representation of the current view.
      *
-     * @param {Object} options - The options for creating the SVG.
-     * @param {boolean} [options.withBackground=true] - Whether to include the background in the SVG.
-     * @param {"light" | "dark"} [options.theme] - The theme to use for the SVG.
-     * @param {FrameRenderingOptions} [options.frameRendering={enabled: true, name: true, outline: true, clip: true}] - The frame rendering options.
-     * @param {number} [options.padding] - The padding to apply around the SVG.
-     * @param {boolean} [options.selectedOnly=false] - Whether to include only the selected elements in the SVG.
-     * @param {boolean} [options.skipInliningFonts=false] - Whether to skip inlining fonts in the SVG.
-     * @param {boolean} [options.embedScene=false] - Whether to embed the scene in the SVG.
-     * @param {ExcalidrawElement[]} [options.elementsOverride] - Optional override for the elements to include in the SVG. Primary to support the Printable Layout Wizard script
-     * @returns {Promise<SVGSVGElement>} A promise that resolves to the SVG element.
+     * @param options - View export options. `elementsOverride`, when supplied, is
+     * a complete replacement rather than a patch. `exportArea` filters that
+     * candidate set and anchors the result to an exact scene rectangle.
+     * @returns A promise resolving to the exported SVG, or `undefined` when no
+     * loaded target view is available.
      */
-    createViewSVG({ withBackground, theme, frameRendering, padding, selectedOnly, skipInliningFonts, embedScene, elementsOverride, }: {
-        withBackground?: boolean;
-        theme?: "light" | "dark";
-        frameRendering?: FrameRenderingOptions;
-        padding?: number;
-        selectedOnly?: boolean;
-        skipInliningFonts?: boolean;
-        embedScene?: boolean;
-        elementsOverride?: ExcalidrawElement[];
-    }): Promise<SVGSVGElement>;
+    createViewSVG(options?: ViewSVGExportOptions): Promise<SVGSVGElement>;
+    /**
+     * Creates a PNG representation of the current view without using or mutating
+     * the EA workbench.
+     *
+     * @param options - View export options. `elementsOverride`, when supplied, is
+     * a complete replacement rather than a patch. `exportArea` filters that
+     * candidate set and anchors the result to an exact scene rectangle.
+     * @returns A promise resolving to a PNG blob, or `undefined` when no loaded
+     * target view is available.
+     */
+    createViewPNG(options?: ViewPNGExportOptions): Promise<Blob>;
     /**
      * Creates an SVG image from the ExcalidrawAutomate elements and the template provided.
      * @param {string} [templatePath] - The template path to use for the SVG.
@@ -761,6 +771,30 @@ export declare class ExcalidrawAutomate {
      */
     addRect(topX: number, topY: number, width: number, height: number, id?: string): string;
     /**
+     * Adds a sticky note and its optional fitted label to the ExcalidrawAutomate
+     * instance. Width and height default to Excalidraw's sticky-note size.
+     * @param {number} topX - The x-coordinate of the top-left corner.
+     * @param {number} topY - The y-coordinate of the top-left corner.
+     * @param {string} text - The sticky-note text. An empty string creates an unlabeled note.
+     * @param {Object} [formatting] - Sticky-note size and label formatting.
+     * @param {number} [formatting.width] - The initial width of the note.
+     * @param {number} [formatting.height] - The initial height of the note.
+     * @param {number} [formatting.fontSize] - The label's maximum font size.
+     * @param {number} [formatting.fontFamily] - The label font family.
+     * @param {"left" | "center" | "right"} [formatting.textAlign] - The label's horizontal alignment.
+     * @param {"top" | "middle" | "bottom"} [formatting.textVerticalAlign] - The label's vertical alignment.
+     * @param {string} [id] - The ID of the sticky-note element.
+     * @returns {string} The ID of the added sticky note.
+     */
+    addStickyNote(topX: number, topY: number, text: string, formatting?: {
+        width?: number;
+        height?: number;
+        fontSize?: number;
+        fontFamily?: number;
+        textAlign?: "left" | "center" | "right";
+        textVerticalAlign?: "top" | "middle" | "bottom";
+    }, id?: string): string;
+    /**
      * Adds a diamond element to the ExcalidrawAutomate instance.
      * @param {number} topX - The x-coordinate of the top-left corner.
      * @param {number} topY - The y-coordinate of the top-left corner.
@@ -837,8 +871,8 @@ export declare class ExcalidrawAutomate {
      * @param {Object} [formatting] - Formatting options for the arrow element.
      * @param {"arrow"|"bar"|"circle"|"circle_outline"|"triangle"|"triangle_outline"|"diamond"|"diamond_outline"|null} [formatting.startArrowHead] - The start arrowhead type.
      * @param {"arrow"|"bar"|"circle"|"circle_outline"|"triangle"|"triangle_outline"|"diamond"|"diamond_outline"|null} [formatting.endArrowHead] - The end arrowhead type.
-     * @param {string} [formatting.startObjectId] - The ID of the start object.
-     * @param {string} [formatting.endObjectId] - The ID of the end object.
+     * @param {string} [formatting.startObjectId] - The ID of the start object. When omitted, the arrow start is unbound.
+     * @param {string} [formatting.endObjectId] - The ID of the end object. When omitted, the arrow end is unbound.
      * BindMode Determines whether the arrow remains outside the shape or is allowed to
      * go all the way inside the shape up to the exact fixed point.
      * @param {"inside" | "orbit"} [formatting.startBindMode] - The binding mode for the start object.
@@ -890,16 +924,19 @@ export declare class ExcalidrawAutomate {
      * @param {string} tex - The LaTeX equation string.
      * @param {number} [scaleX=1] - The x-scaling factor (post mathjax creation)
      * @param {number} [scaleY=1] - The y-scaling factor (post mathjax creation)
+     * @param {MathJaxRenderOptions} [options] - MathJax rendering options. Set `throwOnError` to propagate invalid LaTeX errors.
      * @returns {Promise<string>} Promise resolving to the ID of the added LaTeX image element.
      */
-    addLaTex(topX: number, topY: number, tex: string, scaleX?: number, scaleY?: number): Promise<string>;
+    addLaTex(topX: number, topY: number, tex: string, scaleX?: number, scaleY?: number, options?: MathJaxRenderOptions): Promise<string>;
     /**
      * Returns the base64 dataURL of the LaTeX equation rendered as an SVG.
      * @param {string} tex - The LaTeX equation string.
      * @param {number} [scale=4] - The scale factor for the image.
+     * @param {MathJaxRenderOptions} [options] - MathJax rendering options. Set `throwOnError` to propagate invalid LaTeX errors.
      * @returns {Promise<{mimeType: MimeType; fileId: FileId; dataURL: DataURL; created: number; size: { height: number; width: number };}>} Promise resolving to the LaTeX image data.
      */
-    tex2dataURL(tex: string, scale?: number): Promise<{
+    tex2dataURL(tex: string, scale?: number, // Default scale value, adjust as needed
+    options?: MathJaxRenderOptions): Promise<{
         mimeType: MimeType;
         fileId: FileId;
         dataURL: DataURL;
@@ -936,7 +973,9 @@ export declare class ExcalidrawAutomate {
      */
     addLabelToLine(lineId: string, label: string): string;
     /**
-     * Clears elementsDict and imagesDict only.
+     * Clears the EA workbench (`elementsDict` and `imagesDict`) without changing
+     * the scene, target view, or current style. Call this before each independent
+     * workbench transaction and before repurposing an EA instance.
      */
     clear(): void;
     /**
@@ -949,7 +988,7 @@ export declare class ExcalidrawAutomate {
      * @returns {boolean} True if the file is an Excalidraw file, false otherwise.
      */
     isExcalidrawFile(f: TFile): boolean;
-    targetView: ExcalidrawView;
+    targetView: ExcalidrawView | null;
     /**
      * Sets the target view for EA. All view operations and all access to the Excalidraw API
      * will be performed on this view.
@@ -957,12 +996,15 @@ export declare class ExcalidrawAutomate {
      * Typical usage:
      * - `setView()` to pick a sensible default automatically
      * - `setView(excalidrawView)` to explicitly target a specific view
+     * - `setView(null)` to explicitly clear `targetView`
      *
      * Selectors:
-     * - If `view` is `null` or `undefined` (or `"auto"`), EA will pick a sensible default:
+     * - If `view` is `undefined` (or `"auto"`), EA will pick a sensible default:
      *   1) the currently active Excalidraw view (if any),
      *   2) otherwise the last active Excalidraw view (if it is still available),
      *   3) otherwise the `"first"` Excalidraw view in the workspace.
+     * - If `view` is explicitly `null`, EA clears `targetView`. This is useful for
+     *   sidepanels when focus moves to a Markdown view or no drawing is eligible.
      * - If `show` is `true`, the view will be revealed (brought to front) and focused.
      *
      * Deprecated selectors (kept for backward compatibility):
@@ -974,11 +1016,11 @@ export declare class ExcalidrawAutomate {
      *   necessarily match what a user would consider the “first”/“leftmost”/“topmost” view;
      *   from a user's perspective it may appear effectively random.**
      *
-     * @param {ExcalidrawView | "auto" | "first" | "active" | null | undefined} [view] - The view (or selector) to set as target.
+     * @param {ExcalidrawView | "auto" | "first" | "active" | null | undefined} [view] - The view or selector to set as target. Pass `null` to clear the target.
      * @param {boolean} [show=false] - Whether to reveal/focus the target view.
-     * @returns {ExcalidrawView} The ExcalidrawView that was set as `targetView` (or `null` if none found).
+     * @returns {ExcalidrawView | null} The ExcalidrawView that was set as `targetView`, or `null` when cleared or none was found.
      */
-    setView(view?: ExcalidrawView | "auto" | "first" | "active" | null, show?: boolean): ExcalidrawView;
+    setView(view?: ExcalidrawView | "auto" | "first" | "active" | null, show?: boolean): ExcalidrawView | null;
     /**
      * Returns the Excalidraw API for the current view.
      * @returns {ExcalidrawImperativeAPI} The Excalidraw API.
@@ -1067,11 +1109,14 @@ export declare class ExcalidrawAutomate {
      */
     getColorsFromSVGString(svgString: string): SVGColorInfo;
     /**
-     * Copies elements from the view to elementsDict for editing.
+     * Copies existing scene elements to the workbench as mutable, identity-preserving copies.
+     * The copies can be committed with `addElementsToView()` to update the original
+     * scene elements, or used temporarily by another EA operation and discarded with
+     * `clear()` without modifying the scene.
      * @param {ExcalidrawElement[]} elements - Array of elements to copy.
      * @param {boolean} [copyImages=false] - Whether to copy images as well.
      */
-    copyViewElementsToEAforEditing(elements: ExcalidrawElement[], copyImages?: boolean): void;
+    copyViewElementsToEAforEditing(elements: readonly ExcalidrawElement[], copyImages?: boolean): void;
     /**
      * Toggles full screen mode for the target view.
      * @param {boolean} [forceViewMode=false] - Whether to force view mode.
@@ -1153,7 +1198,9 @@ export declare class ExcalidrawAutomate {
      * `getActions` is called with the currently selected element whenever the
      * selection, element type, fileId, or customData changes, and should
      * return the buttons to show for that element (an empty array shows
-     * nothing). Registration is tied to the current view: it is automatically
+     * nothing). The menu is temporarily hidden while the selected frame's
+     * title is being edited, so custom actions do not obstruct the title editor.
+     * Registration is tied to the current view: it is automatically
      * cleared when the view closes, and cleared for this script specifically
      * if the script's file is deleted while the view is still open. Calling
      * this a second time for the same script in the same view (e.g. running
@@ -1177,11 +1224,12 @@ export declare class ExcalidrawAutomate {
      * A fresh "allow" also immediately re-runs the script in every other
      * currently-open Excalidraw view, so it attaches everywhere right away
      * instead of only the next time each view is opened.
+     * @param {string} [message] - Optional script-provided explanation displayed as the second paragraph of the permission prompt.
      * @returns "allow" if the script is permitted to autostart, "deny" if
      * the user has denied it, or "pending" if there is no active script or
      * the user has not yet made a decision.
      */
-    registerAutostart(): Promise<"allow" | "deny" | "pending">;
+    registerAutostart(message?: string): Promise<"allow" | "deny" | "pending">;
     /**
      * If set, this callback is triggered when the user closes an Excalidraw view.
      */
@@ -1431,12 +1479,27 @@ export declare class ExcalidrawAutomate {
      */
     getExportSettings(withBackground: boolean, withTheme: boolean, isMask?: boolean): ExportSettings;
     /**
-     * Gets the elements within a specific area.
-     * @param elements - The elements to check.
-     * @param param1 - The area to check against.
-     * @returns The elements within the area.
+     * Gets elements whose rendered bounds intersect a scene area.
+     *
+     * @param elements - Elements to test, in scene stacking order.
+     * @param area - Rectangle or element defining the scene area.
+     * @param options - Optional margin, marker-frame, and binding expansion rules.
+     * @returns Intersecting elements in their original stacking order.
      */
-    getElementsInArea(elements: readonly ExcalidrawElement[], element: ExcalidrawElement): ExcalidrawElement[];
+    getElementsInArea(elements: readonly ExcalidrawElement[], area: SceneArea, options?: ElementsInAreaOptions): ExcalidrawElement[];
+    /**
+     * Gets elements whose rendered bounds intersect a scene area.
+     *
+     * @remarks
+     * This explicit name is preferred for new code. `getElementsInArea()` remains
+     * available as a backward-compatible alias and uses the same implementation.
+     *
+     * @param elements - Elements to test, in scene stacking order.
+     * @param area - Rectangle or element defining the scene area.
+     * @param options - Optional margin, marker-frame, and binding expansion rules.
+     * @returns Intersecting elements in their original stacking order.
+     */
+    getElementsIntersectionArea(elements: readonly ExcalidrawElement[], area: SceneArea, options?: ElementsInAreaOptions): ExcalidrawElement[];
     /**
      * Gets the bounding box of the specified elements.
      * The bounding box is the box encapsulating all of the elements completely.
@@ -1477,6 +1540,13 @@ export declare class ExcalidrawAutomate {
      * @returns {string | null} The groupId or null if not found.
      */
     getCommonGroupForElements(elements: ExcalidrawElement[]): string;
+    /**
+     * This is a convenience method to get the release notes for the plugin.
+     * @returns {Object} The release notes object.
+     */
+    getReleaseNotes(): {
+        [k: string]: string;
+    };
     /**
      * Gets all the elements from elements[] that share one or more groupIds with the specified element.
      * @param {ExcalidrawElement} element - The element to check.
@@ -1572,7 +1642,10 @@ export declare class ExcalidrawAutomate {
      */
     generateElementId(): string;
     /**
-     * Clones the specified element with a new ID.
+     * Clones the specified element with a new ID for insertion as a genuine duplicate.
+     * Do not use this to edit an existing scene element; use
+     * `copyViewElementsToEAforEditing()` and retrieve the workbench copy by its
+     * original ID instead.
      * @param {ExcalidrawElement} element - The element to clone.
      * @returns {ExcalidrawElement} The cloned element with a new ID.
      */
@@ -1688,7 +1761,8 @@ export declare class ExcalidrawAutomate {
      */
     getMathEditorExtensions(): (LRLanguage | Extension)[];
     /**
-     * Destroys the ExcalidrawAutomate instance, clearing all references and data.
+     * Destroys this EA once, first releasing registered external resources and
+     * then clearing the ordinary EA state and references.
      */
     destroy(): void;
 }
@@ -1965,6 +2039,58 @@ export interface AddImageOptions {
     anchor?: boolean;
     colorMap?: ColorMap;
 }
+/** A rectangular region in Excalidraw scene coordinates. */
+export interface SceneArea {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    /** Optional ID of an element representing the area. */
+    id?: string;
+}
+/** Controls how {@link ExcalidrawAutomate.getElementsInArea} selects elements. */
+export interface ElementsInAreaOptions {
+    /** Expands the area by this many scene units on every side. */
+    margin?: number;
+    /** Includes marker frames. Existing behavior excludes them by default. */
+    includeMarkerFrames?: boolean;
+    /** Includes containers, bound elements, and arrow binding targets needed by the result. */
+    includeBoundElements?: boolean;
+}
+/** Restricts a view image export to a rectangular scene region. */
+export interface ViewExportArea extends SceneArea {
+    /** Expands both the selected content and exported viewport on every side. */
+    margin?: number;
+    /** Includes marker frames in the export candidate set. */
+    includeMarkerFrames?: boolean;
+    /**
+     * Includes containers, bound elements, and arrow binding targets needed to
+     * render intersecting elements. Defaults to `true` for area exports.
+     */
+    includeBoundElements?: boolean;
+}
+/** Options shared by view-based SVG and PNG exports. */
+export interface ViewImageExportOptions {
+    withBackground?: boolean;
+    theme?: AppState["theme"];
+    frameRendering?: FrameRenderingOptions;
+    padding?: number;
+    selectedOnly?: boolean;
+    embedScene?: boolean;
+    /** Complete replacement for the view elements used by the export. */
+    elementsOverride?: readonly ExcalidrawElement[];
+    /** Filters and anchors the export to an exact scene rectangle. */
+    exportArea?: ViewExportArea;
+}
+/** Options for {@link ExcalidrawAutomate.createViewSVG}. */
+export interface ViewSVGExportOptions extends ViewImageExportOptions {
+    skipInliningFonts?: boolean;
+}
+/** Options for {@link ExcalidrawAutomate.createViewPNG}. */
+export interface ViewPNGExportOptions extends ViewImageExportOptions {
+    /** Raster scale applied to the exported viewport. */
+    scale?: number;
+}
 
 /* ************************************** */
 /* lib/types/excalidrawElementTypes.d.ts */
@@ -2044,7 +2170,6 @@ export type MarkdownBlockCacheEntry = {
 };
 export interface ViewSemaphores {
     warnAboutLinearElementLinkClick: boolean;
-    embeddableIsEditingSelf: boolean;
     popoutUnload: boolean;
     windowMigrating: boolean;
     viewloaded: boolean;
@@ -2052,12 +2177,7 @@ export interface ViewSemaphores {
     scriptsReady: boolean;
     justLoaded: boolean;
     preventAutozoom: boolean;
-    autosaving: boolean;
-    forceSaving: boolean;
-    dirty: string | null;
-    preventReload: boolean;
     isEditingText: boolean;
-    saving: boolean;
     hoverSleep: boolean;
     wheelTimeout: number | null;
     shouldSaveImportedImage: boolean;
@@ -2248,6 +2368,8 @@ export declare const MARKDOWN_IMAGE_CUSTOM_DATA_KEY = "markdownImage";
 export declare const MARKDOWN_IMAGE_EMBEDDED_FILE_TOKEN = "markdown-image";
 export declare const MARKDOWN_IMAGE_SCHEMA_VERSION = 1;
 export type MarkdownImageSource = "local" | "external";
+/** Persisted behavior for deleting a local Markdown image from the scene. */
+export type MarkdownImageDeletionPreference = "ask" | "keep" | "delete";
 export type MarkdownImageTransclusionRenderSettings = {
     enabled: boolean;
     fontFamily: string;
@@ -2283,6 +2405,15 @@ export type MarkdownImageData = {
 export type MarkdownImageSettings = {
     defaults: MarkdownImageRenderSettings;
 };
+
+/* ********************************* */
+/* lib/types/mathJaxTypes.d.ts */
+/* ********************************* */
+/** Options for rendering LaTeX through the Excalidraw Extras MathJax service. */
+export interface MathJaxRenderOptions {
+    /** Propagate MathJax conversion errors instead of returning null. */
+    throwOnError?: boolean;
+}
 
 /* ************************************** */
 /* lib/types/obsidianDeclarativeSettings.d.ts */
@@ -2586,26 +2717,6 @@ export interface FrameRenderingOptions {
     clip: boolean;
 }
 export type PaneTarget = "active-pane" | "new-pane" | "popout-window" | "new-tab" | "md-properties";
-export interface NestedFileNode {
-    file: TFile;
-    /**
-     * All distinct dependency paths from the root file down to this embedded file.
-     * Each path is an ordered array of TFile objects starting with the `rootFile` at index 0.
-     *
-     * @example
-     * If Root -> A -> B2.2 and Root -> B -> B2 -> B2.2
-     * The paths for B2.2 will be:
-     * [
-     *   [Root, A, B2.2],
-     *   [Root, B, B2, B2.2]
-     * ]
-     *
-     * Usage: To find which top-level embeds to reload if this file changes,
-     * you can map over `paths` and collect `path[1]`.
-     */
-    paths: TFile[][];
-}
-export type NestedFileMap = Map<TFile, NestedFileNode>;
 
 /* ************************************** */
 /* node_modules/@zsviczian/excalidraw/types/element/src/bounds.d.ts */
@@ -2770,6 +2881,11 @@ type _ExcalidrawElementBase = Readonly<{
     boundElements: readonly BoundElement[] | null;
     /** epoch (ms) timestamp of last element update */
     updated: number;
+    /** Client wall-clock creation time in epoch milliseconds; null if unknown.
+        Preserved for this element's lifetime, including edits and undo/redo,
+        and excluded from `ElementUpdate` (mutateElement / newElementWith).
+        Duplicating an element starts a new lifetime. Not an ordering clock. */
+    created: number | null;
     link: string | null;
     hasTextLink?: boolean;
     locked: boolean;
@@ -2781,6 +2897,14 @@ export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {
 export type ExcalidrawRectangleElement = _ExcalidrawElementBase & {
     type: "rectangle";
 };
+export type ExcalidrawStickyNoteElement = _ExcalidrawElementBase & Readonly<{
+    type: "stickynote";
+    /**
+     * The height the user set, from which the layout derives `height`: the
+     * note grows above it to fit its label and never shrinks below it
+     */
+    baseHeight: number;
+}>;
 export type ExcalidrawDiamondElement = _ExcalidrawElementBase & {
     type: "diamond";
 };
@@ -2878,14 +3002,14 @@ export type ExcalidrawFrameLikeElement = ExcalidrawFrameElement | ExcalidrawMagi
  * These are elements that don't have any additional properties.
  */
 export type ExcalidrawGenericElement = ExcalidrawSelectionElement | ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement;
-export type ExcalidrawFlowchartNodeElement = ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement;
-export type ExcalidrawRectanguloidElement = ExcalidrawRectangleElement | ExcalidrawImageElement | ExcalidrawTextElement | ExcalidrawFreeDrawElement | ExcalidrawIframeLikeElement | ExcalidrawFrameLikeElement | ExcalidrawEmbeddableElement | ExcalidrawSelectionElement;
+export type ExcalidrawFlowchartNodeElement = ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement;
+export type ExcalidrawRectanguloidElement = ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ExcalidrawImageElement | ExcalidrawTextElement | ExcalidrawFreeDrawElement | ExcalidrawIframeLikeElement | ExcalidrawFrameLikeElement | ExcalidrawEmbeddableElement | ExcalidrawSelectionElement;
 /**
  * ExcalidrawElement should be JSON serializable and (eventually) contain
  * no computed data. The list of all ExcalidrawElements should be shareable
  * between peers and contain no state local to the peer.
  */
-export type ExcalidrawElement = ExcalidrawGenericElement | ExcalidrawTextElement | ExcalidrawLinearElement | ExcalidrawArrowElement | ExcalidrawFreeDrawElement | ExcalidrawImageElement | ExcalidrawFrameElement | ExcalidrawMagicFrameElement | ExcalidrawIframeElement | ExcalidrawEmbeddableElement;
+export type ExcalidrawElement = ExcalidrawGenericElement | ExcalidrawStickyNoteElement | ExcalidrawTextElement | ExcalidrawLinearElement | ExcalidrawArrowElement | ExcalidrawFreeDrawElement | ExcalidrawImageElement | ExcalidrawFrameElement | ExcalidrawMagicFrameElement | ExcalidrawIframeElement | ExcalidrawEmbeddableElement;
 export type ExcalidrawNonSelectionElement = Exclude<ExcalidrawElement, ExcalidrawSelectionElement>;
 export type Ordered<TElement extends ExcalidrawElement> = TElement & {
     index: FractionalIndex;
@@ -2899,11 +3023,20 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase & Readonly<{
     type: "text";
     fontSize: number;
     fontFamily: FontFamilyValues;
+    /**
+     * The font size the user picked, from which the layout derives `fontSize`.
+     * Today only sticky note labels have one: the auto-fit shrinks below it
+     * and never above it (compare `baseHeight`, which the note grows above).
+     * `null` for every other text. Read it through `getBaseFontSize` —
+     * generic binding repair can detach a label without clearing this, so
+     * the container decides its meaning.
+     */
+    baseFontSize: number | null;
     text: string;
     rawText: string;
     textAlign: TextAlign;
     verticalAlign: VerticalAlign;
-    containerId: ExcalidrawGenericElement["id"] | null;
+    containerId: ExcalidrawTextContainer["id"] | null;
     originalText: string;
     /**
      * If `true` the width will fit the text. If `false`, the text will
@@ -2919,9 +3052,16 @@ export type ExcalidrawTextElement = _ExcalidrawElementBase & Readonly<{
     lineHeight: number & {
         _brand: "unitlessLineHeight";
     };
+    /**
+     * Position of text bound to a linear element (such as an arrow),
+     * expressed as a normalized arc-length parameter (0–1) along the
+     * container's whole path. Independent of how the path is segmented,
+     * so it survives midpoint insertion and other geometry changes.
+     * */
+    labelPosition?: number | null;
 }>;
-export type ExcalidrawBindableElement = ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawTextElement | ExcalidrawImageElement | ExcalidrawIframeElement | ExcalidrawEmbeddableElement | ExcalidrawFrameElement | ExcalidrawMagicFrameElement;
-export type ExcalidrawTextContainer = ExcalidrawRectangleElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawArrowElement;
+export type ExcalidrawBindableElement = ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawTextElement | ExcalidrawImageElement | ExcalidrawIframeElement | ExcalidrawEmbeddableElement | ExcalidrawFrameElement | ExcalidrawMagicFrameElement;
+export type ExcalidrawTextContainer = ExcalidrawRectangleElement | ExcalidrawStickyNoteElement | ExcalidrawDiamondElement | ExcalidrawEllipseElement | ExcalidrawArrowElement;
 export type ExcalidrawTextElementWithContainer = {
     containerId: ExcalidrawTextContainer["id"];
 } & ExcalidrawTextElement;
@@ -3100,7 +3240,7 @@ declare class App extends React.Component<AppProps, AppState> {
     library: AppClassProperties["library"];
     libraryItemsFromStorage: LibraryItems | undefined;
     id: string;
-    private store;
+    store: Store;
     private history;
     private shouldRenderAllEmbeddables;
     excalidrawContainerValue: {
@@ -3127,14 +3267,24 @@ declare class App extends React.Component<AppProps, AppState> {
     private appStateObserver;
     onStateChange: OnStateChange;
     bucketFill: AppBucketFill;
+    toolDrag: AppToolDrag;
     flowchart: AppFlowchart;
     cursor: AppCursor;
     arrowText: AppArrowText;
+    pan: AppPan;
     viewport: AppViewport;
+    wheel: AppWheel;
     bindModeHandler: ReturnType<typeof setTimeout> | null;
     private textWysiwygSubmitHandler;
     hitLinkElement?: NonDeletedExcalidrawElement;
     lastPointerDownEvent: React.PointerEvent<HTMLElement> | null;
+    /**
+     * the handle of the resize in progress while `state.isResizing` — for UI
+     * that words itself by handle (a sticky note's corners resize
+     * proportionally, its edges freely); not app state, so it costs no
+     * re-render of its own
+     */
+    activeResizeHandle: TransformHandleDirection | null;
     lastPointerUpEvent: React.PointerEvent<HTMLElement> | PointerEvent | null;
     lastPointerUpIsDoubleClick: boolean;
     lastPointerMoveEvent: PointerEvent | null;
@@ -3194,6 +3344,7 @@ declare class App extends React.Component<AppProps, AppState> {
             wasAddedToSelection: boolean;
             hasBeenDuplicated: boolean;
             hasHitCommonBoundingBoxOfSelectedElements: boolean;
+            arrowLabel: boolean;
         };
         withCmdOrCtrl: boolean;
         drag: {
@@ -3256,6 +3407,7 @@ declare class App extends React.Component<AppProps, AppState> {
             wasAddedToSelection: boolean;
             hasBeenDuplicated: boolean;
             hasHitCommonBoundingBoxOfSelectedElements: boolean;
+            arrowLabel: boolean;
         };
         withCmdOrCtrl: boolean;
         drag: {
@@ -3287,6 +3439,12 @@ declare class App extends React.Component<AppProps, AppState> {
     missingPointerEventCleanupEmitter: Emitter<[event: PointerEvent | null]>;
     onRemoveEventListenersEmitter: Emitter<[]>;
     api: ExcalidrawImperativeAPI;
+    private elementRenderOverrides;
+    /** offsets of `elementRenderOverrides`; keeps its identity while they don't change */
+    private elementRenderOffsets;
+    private renderOverridesUpdatePending;
+    private getRenderOverrideConfig;
+    private getElementRenderState;
     private createExcalidrawAPI;
     constructor(props: AppProps);
     /**
@@ -3417,7 +3575,6 @@ declare class App extends React.Component<AppProps, AppState> {
     private onBlur;
     private onUnload;
     private disableEvent;
-    private preventBrowserZoomWheel;
     private handleNavigationModeKeyDown;
     /**
      * PageUp/PageDown scroll the canvas by a page — vertically, or
@@ -3555,6 +3712,10 @@ declare class App extends React.Component<AppProps, AppState> {
         captureUpdate?: SceneData["captureUpdate"];
         forceFlushSync?: boolean;
     }) => void;
+    /**
+     * see {@link ExcalidrawImperativeAPI.setElementRenderOverrides} for details
+     */
+    setElementRenderOverrides: (overrides: ElementRenderOverrides | null) => void;
     applyDeltas: (deltas: StoreDelta[], options?: ApplyToOptions) => [SceneElementsMap, AppState, boolean];
     mutateElement: <TElement extends Mutable<ExcalidrawElement>>(element: TElement, updates: ElementUpdate<TElement>, informMutation?: boolean) => TElement;
     triggerRender: (
@@ -3617,9 +3778,12 @@ declare class App extends React.Component<AppProps, AppState> {
     }) & {
         preferSelected?: boolean;
     }): NonDeleted<ExcalidrawElement> | null;
-    private getElementsAtPosition;
+    getElementsAtPosition(x: number, y: number, opts?: {
+        includeBoundTextElement?: boolean;
+        includeLockedElements?: boolean;
+    }): NonDeleted<ExcalidrawElement>[];
     getElementHitThreshold(element: ExcalidrawElement): number;
-    private hitElement;
+    hitElement(x: number, y: number, element: NonDeletedExcalidrawElement, considerBoundingBox?: boolean): boolean;
     getTextBindableContainerAtPosition(x: number, y: number): (Readonly<{
         id: string;
         x: number;
@@ -3647,6 +3811,7 @@ declare class App extends React.Component<AppProps, AppState> {
         frameId: string | null;
         boundElements: readonly import("@excalidraw/element/types").BoundElement[] | null;
         updated: number;
+        created: number | null;
         link: string | null;
         hasTextLink?: boolean;
         locked: boolean;
@@ -3682,6 +3847,44 @@ declare class App extends React.Component<AppProps, AppState> {
         frameId: string | null;
         boundElements: readonly import("@excalidraw/element/types").BoundElement[] | null;
         updated: number;
+        created: number | null;
+        link: string | null;
+        hasTextLink?: boolean;
+        locked: boolean;
+        customData?: Record<string, any>;
+    }> & Readonly<{
+        type: "stickynote";
+        baseHeight: number;
+    }> & {
+        isDeleted: false;
+    }) | (Readonly<{
+        id: string;
+        x: number;
+        y: number;
+        strokeColor: string;
+        backgroundColor: string;
+        fillStyle: import("@excalidraw/element/types").FillStyle;
+        strokeWidth: number;
+        strokeStyle: import("@excalidraw/element/types").StrokeStyle;
+        roundness: null | {
+            type: import("@excalidraw/element/types").RoundnessType;
+            value?: number;
+        };
+        roughness: number;
+        opacity: number;
+        width: number;
+        height: number;
+        angle: Radians;
+        seed: number;
+        version: number;
+        versionNonce: number;
+        index: import("@excalidraw/element/types").FractionalIndex | null;
+        isDeleted: boolean;
+        groupIds: readonly import("@excalidraw/element/types").GroupId[];
+        frameId: string | null;
+        boundElements: readonly import("@excalidraw/element/types").BoundElement[] | null;
+        updated: number;
+        created: number | null;
         link: string | null;
         hasTextLink?: boolean;
         locked: boolean;
@@ -3717,6 +3920,7 @@ declare class App extends React.Component<AppProps, AppState> {
         frameId: string | null;
         boundElements: readonly import("@excalidraw/element/types").BoundElement[] | null;
         updated: number;
+        created: number | null;
         link: string | null;
         hasTextLink?: boolean;
         locked: boolean;
@@ -3752,6 +3956,7 @@ declare class App extends React.Component<AppProps, AppState> {
         frameId: string | null;
         boundElements: readonly import("@excalidraw/element/types").BoundElement[] | null;
         updated: number;
+        created: number | null;
         link: string | null;
         hasTextLink?: boolean;
         locked: boolean;
@@ -3781,7 +3986,25 @@ declare class App extends React.Component<AppProps, AppState> {
      * so the whole create-and-type lands in a single entry.
      */
     private isEditingTextContent;
-    private startTextEditing;
+    startTextEditing: ({ sceneX, sceneY, insertAtParentCenter, container, autoEdit, initialCaretSceneCoords, arrowEndpoint, }: {
+        /** X position to insert text at */
+        sceneX: number;
+        /** Y position to insert text at */
+        sceneY: number;
+        /** whether to attempt to insert at element center if applicable */
+        insertAtParentCenter?: boolean;
+        container?: ExcalidrawTextContainer | null;
+        autoEdit?: boolean;
+        initialCaretSceneCoords?: {
+            x: number;
+            y: number;
+        };
+        /**
+         * creates the text as a label for this arrow endpoint: the binding then
+         * dictates the text's position and alignment, overriding (sceneX, sceneY)
+         */
+        arrowEndpoint?: ArrowEndpoint | null;
+    }) => void;
     private debounceDoubleClickTimestamp;
     private startImageCropping;
     private finishImageCropping;
@@ -3835,6 +4058,10 @@ declare class App extends React.Component<AppProps, AppState> {
     private handleCanvasPointerMove;
     private handleEraser;
     private handleTouchMove;
+    /**
+     * Applies the hover affordances of a selected linear element: the cursor,
+     * plus the hovered-handle state that renders them highlighted.
+     */
     handleHoverSelectedLinearElement(linearElementEditor: LinearElementEditor, scenePointerX: number, scenePointerY: number): void;
     private handleCanvasPointerDown;
     private handleCanvasPointerUp;
@@ -3846,8 +4073,6 @@ declare class App extends React.Component<AppProps, AppState> {
      * pointerup handlers manually
      */
     private maybeCleanupAfterMissingPointerUp;
-    handleCanvasPanUsingWheelOrSpaceDrag: (event: React.PointerEvent<HTMLElement> | MouseEvent) => boolean;
-    private startRightClickPanning;
     private updateGestureOnPointerDown;
     /**
      * Tracks the pointer within the ongoing multi-touch gesture and applies
@@ -3878,8 +4103,10 @@ declare class App extends React.Component<AppProps, AppState> {
     }) => NonDeleted<ExcalidrawEmbeddableElement> | undefined;
     private newImagePlaceholder;
     private handleLinearElementOnPointerDown;
-    private getCurrentItemRoundness;
-    private getCurrentItemStrokeWidth;
+    getCurrentItemRoundness(elementType: "selection" | "rectangle" | "stickynote" | "diamond" | "ellipse" | "iframe" | "embeddable"): {
+        type: 2 | 3;
+    } | null;
+    getCurrentItemStrokeWidth(elementType: ExcalidrawElement["type"]): number;
     private createGenericElementOnPointerDown;
     private createFrameElementOnPointerDown;
     private maybeCacheReferenceSnapPoints;
@@ -3915,19 +4142,29 @@ declare class App extends React.Component<AppProps, AppState> {
     private handleAppOnDrop;
     loadFileToCanvas: (file: File, fileHandle: FileSystemFileHandle | null) => Promise<void>;
     private handleCanvasContextMenu;
+    /** opens the context menu for the element under the pointer, or the canvas */
+    openContextMenu: (pointer: {
+        clientX: number;
+        clientY: number;
+        button?: number;
+        pointerType?: string;
+    }) => void;
     private maybeDragNewGenericElement;
     private maybeHandleCrop;
     private maybeHandleResize;
     private getContextMenuItems;
-    private handleWheel;
     getTextWysiwygSnappedToCenterPosition(x: number, y: number, appState: AppState, container?: ExcalidrawTextContainer | null): {
         viewportX: number;
         viewportY: number;
         elementCenterX: number;
         elementCenterY: number;
     } | undefined;
-    private savePointer;
-    private resetShouldCacheIgnoreZoomDebounced;
+    savePointer: (x: number, y: number, button: "up" | "down") => void;
+    resetShouldCacheIgnoreZoomDebounced: {
+        (): void;
+        flush(): void;
+        cancel(): void;
+    };
     private updateDOMRect;
     refresh: () => void;
     private getCanvasOffsets;
@@ -4079,7 +4316,7 @@ export type BinaryFileData = {
 };
 export type BinaryFileMetadata = Omit<BinaryFileData, "dataURL">;
 export type BinaryFiles = Record<ExcalidrawElement["id"], BinaryFileData>;
-export type ToolType = "selection" | "lasso" | "rectangle" | "diamond" | "ellipse" | "arrow" | "line" | "freedraw" | "text" | "image" | "eraser" | "hand" | "frame" | "magicframe" | "embeddable" | "laser" | "mermaid" | "autoshape" | "bucketfill";
+export type ToolType = "selection" | "lasso" | "rectangle" | "diamond" | "ellipse" | "arrow" | "line" | "freedraw" | "text" | "image" | "eraser" | "hand" | "frame" | "magicframe" | "stickynote" | "embeddable" | "laser" | "mermaid" | "autoshape" | "bucketfill";
 export type ElementOrToolType = ExcalidrawElementType | ToolType | "custom";
 export type ActiveTool = {
     type: ToolType;
@@ -4180,6 +4417,11 @@ export type ObservedElementsAppState = {
 };
 export type BoxSelectionMode = "contain" | "overlap";
 /**
+ * The pointing device the wheel mappings are tuned for. `auto` is reserved
+ * for detecting it from the wheel events; see `resolveInputDevice`.
+ */
+export type InputDevice = "auto" | "mouse" | "trackpad";
+/**
  * A box, in scene coordinates, that pan & zoom are constrained to.
  *
  * This is a private type. For public API, only use specific properties,
@@ -4259,6 +4501,14 @@ export interface AppState {
     /** user preference whether arrow snap to midpoints while binding */
     isMidpointSnappingEnabled: boolean;
     /**
+     * user preference for what the wheel does: with a `trackpad` a plain wheel
+     * pans; with a `mouse` a plain wheel zooms. Ctrl/cmd+wheel (how a pinch is
+     * delivered) zooms with either device. Shift+wheel pans horizontally;
+     * ctrl/cmd+shift+wheel pans vertically. `auto` resolves to `trackpad` until
+     * device detection exists — see `resolveInputDevice`
+     */
+    inputDevice: InputDevice;
+    /**
      * The bindable element the UI highlights for the user when an arrow is
      * dragged or otherwise its endpoint being close to said element.
      */
@@ -4313,6 +4563,8 @@ export interface AppState {
     exportWithDarkMode: boolean;
     exportScale: number;
     currentItemStrokeColor: string;
+    currentItemStickynoteStrokeColor: string;
+    currentItemStickynoteBackgroundColor: string;
     currentItemBackgroundColor: string;
     currentItemFillStyle: ExcalidrawElement["fillStyle"];
     currentItemStrokeWidth: number | undefined;
@@ -4487,6 +4739,9 @@ export interface AppState {
          * even though both drive `currentItemBackgroundColor` (its defaults and
          * use case differ — no transparent) */
         bucketFill: readonly string[] | null;
+        /** sticky notes are their own color domain (own defaults, own picks) */
+        stickyNoteStroke: readonly string[] | null;
+        stickyNoteBackground: readonly string[] | null;
     };
 }
 export type SearchMatch = {
@@ -4679,6 +4934,20 @@ export type UIConfig = {
         scrollBackToContent?: boolean;
     };
 };
+/** Supported visual changes. Geometry, content, bindings and styles are not overridable. */
+export type ElementRenderOverride = Readonly<{
+    /** Absolute render opacity (0–100, clamped). Omitted: use element.opacity. */
+    opacity?: number;
+    /** Translation in scene units. Bound labels inherit their container's offset and ignore this field. */
+    offset?: Readonly<{
+        x: number;
+        y: number;
+    }>;
+}>;
+/** see {@link ExcalidrawImperativeAPI.setElementRenderOverrides} for details */
+export type ElementRenderOverrides = ReadonlyMap<ExcalidrawElement["id"], ElementRenderOverride>;
+/** The translation part of a snapshot: only the entries that carry an offset. */
+export type ElementRenderOffsets = ReadonlyMap<ExcalidrawElement["id"], NonNullable<ElementRenderOverride["offset"]>>;
 export interface ExcalidrawProps {
     className?: string;
     /**
@@ -4895,7 +5164,8 @@ export interface ExcalidrawProps {
     }) => MaybePromise<void> | AsyncGenerator<OnExportProgress, void>;
 }
 export type SceneData = {
-    elements?: ImportedDataState["elements"];
+    /** Expects normalized elements; restore imported data before updating the scene. */
+    elements?: readonly ExcalidrawElement[] | null;
     appState?: ImportedDataState["appState"];
     collaborators?: Map<SocketId, Collaborator>;
     captureUpdate?: CaptureUpdateActionType;
@@ -4991,8 +5261,11 @@ export type AppClassProperties = {
     dismissLinearEditor: App["dismissLinearEditor"];
     flowchart: App["flowchart"];
     drawShape: App["drawShape"];
+    arrowText: App["arrowText"];
     cursor: App["cursor"];
     bucketFill: App["bucketFill"];
+    toolDrag: App["toolDrag"];
+    activeResizeHandle: App["activeResizeHandle"];
     isToolLocked: App["isToolLocked"];
     getEffectiveGridSize: App["getEffectiveGridSize"];
     setPlugins: App["setPlugins"];
@@ -5047,6 +5320,7 @@ export type PointerDownState = Readonly<{
         wasAddedToSelection: boolean;
         hasBeenDuplicated: boolean;
         hasHitCommonBoundingBoxOfSelectedElements: boolean;
+        arrowLabel: boolean;
     };
     withCmdOrCtrl: boolean;
     drag: {
@@ -5112,6 +5386,22 @@ export interface ExcalidrawImperativeAPI {
     getName: InstanceType<typeof App>["getName"];
     setViewport: InstanceType<typeof App>["viewport"]["setViewport"];
     getViewportOffsets: InstanceType<typeof App>["viewport"]["getOffsets"];
+    /**
+     * Atomically replaces all transient visual overrides. Values are copied;
+     * omitted IDs/fields use document values, except for inherited label offsets.
+     * null clears the snapshot.
+     * Repaints without document changes, history entries or onChange events;
+     * an equivalent snapshot may still repaint (clearing an already clear
+     * snapshot does not), so submit only when something changed.
+     * Finite opacity is clamped to 0–100; non-finite values reject the snapshot.
+     * Unknown/deleted IDs are ignored when rendering. Reset/unmount clears it.
+     * Bound labels inherit their container's offset; offsets targeting them are
+     * ignored. Label opacity remains independent. Target frame children explicitly.
+     * Frame opacity still multiplies child opacity. Decorations follow their owner.
+     * Exports and interactive geometry (hit tests, selection, editing) use document
+     * values, including while authoring an animation preview in edit mode.
+     */
+    setElementRenderOverrides: InstanceType<typeof App>["setElementRenderOverrides"];
     registerAction: (action: Action) => void;
     refresh: InstanceType<typeof App>["refresh"];
     setToast: InstanceType<typeof App>["setToast"];
@@ -5410,7 +5700,6 @@ declare namespace ExcalidrawLib {
   type ObsidianExcalidrawHostAdapter = Readonly<{
     protocolVersion: 2;
     isDoubleTapEraserEnabled: () => boolean;
-    isRightClickPanEnabled: () => boolean;
     getZoomToFitMaxLevel: () => number;
     isPenModeCrosshairVisible: () => boolean;
     isSingleFingerPanningEnabled: () => boolean;
@@ -5599,6 +5888,7 @@ declare namespace ExcalidrawLib {
   } | undefined>;*/
 
   let hashElementsVersion: typeof import("@zsviczian/excalidraw/types/excalidraw").hashElementsVersion;
+  let convertToExcalidrawElements: typeof import("@zsviczian/excalidraw").convertToExcalidrawElements;
   let Excalidraw: typeof import("@zsviczian/excalidraw").Excalidraw;
   let MainMenu: typeof import("@zsviczian/excalidraw").MainMenu;
   let WelcomeScreen: typeof import("@zsviczian/excalidraw").WelcomeScreen;
