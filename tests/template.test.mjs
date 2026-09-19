@@ -18,6 +18,7 @@ import { createManifest, hash, json, walk } from "../scripts/template-manifest.m
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const updater = join(root, "scripts/update-template.mjs");
+const updaterSource = readFileSync(updater, "utf8");
 const put = (base, name, content) => {
   const target = join(base, name);
   mkdirSync(dirname(target), { recursive: true });
@@ -62,6 +63,10 @@ function fixture(t) {
   }
   return { source, target, manifest, publish, run };
 }
+
+test("clones the upstream default branch", () => {
+  assert.doesNotMatch(updaterSource, /--branch[", ]+master/);
+});
 
 test("updates and repeats safely; preview preserves files and package identity/custom keys", (t) => {
   const f = fixture(t);

@@ -81,7 +81,7 @@ try {
     source = join(temporary, "upstream");
     execFileSync(
       "git",
-      ["clone", "--quiet", "--depth", "1", "--branch", "master", upstream, source],
+      ["clone", "--quiet", "--depth", "1", upstream, source],
       { stdio: "inherit" },
     );
   }
