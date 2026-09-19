@@ -13,9 +13,11 @@ classes and functions. For example, `new ea.obsidian.Notice("Done")`. Use
 from Obsidian or the plugin. The build rejects those unavailable runtime modules.
 
 `src/types/ea.d.ts` derives the EA API from `.template/types/`, generated from the
-plugin declarations. `utils` also supports object-form inputPrompt, generic
-suggester, scriptFile, and executionSource. Both prompts can return undefined on
-cancellation; an empty string can be valid input.
+plugin declarations. Do not edit either path: template updates replace them. Put
+repository-specific ambient declarations and type augmentations in
+`src/types/local.d.ts`, which remains local to your workspace. `utils` also supports
+object-form inputPrompt, generic suggester, scriptFile, and executionSource. Both
+prompts can return undefined on cancellation; an empty string can be valid input.
 
 ```ts
 const label = await utils.inputPrompt({ header: "Enter a label", value: "" });

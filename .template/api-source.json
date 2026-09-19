@@ -1,7 +1,7 @@
 {
   "repository": "https://github.com/zsviczian/obsidian-excalidraw-plugin",
-  "revision": "98d0fb193c47fb15e6505c275f5105bbc09933cb",
-  "sourceDirty": true,
+  "revision": "6474b18464dc0a3e031dfac4579c57f48284d050",
+  "sourceDirty": false,
   "pluginVersion": "2.27.3",
   "excalidrawVersion": "0.18.137"
 }

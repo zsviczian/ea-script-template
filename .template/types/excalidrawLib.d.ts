@@ -24,7 +24,7 @@ import type { DataURL } from "@zsviczian/excalidraw/types";
 import type { FontMetadata } from "@zsviczian/excalidraw/common/index";
 import type { NonDeletedExcalidrawElement } from "@zsviczian/excalidraw/element/types";
 import type { Theme } from "@zsviczian/excalidraw/element/types";
-declare namespace ExcalidrawLib {
+export declare namespace ExcalidrawLib {
     type ElementUpdate<TElement extends ExcalidrawElement> = Omit<Partial<TElement>, "id" | "updated">;
     type ExportOpts = {
         elements: readonly NonDeleted<ExcalidrawElement>[];

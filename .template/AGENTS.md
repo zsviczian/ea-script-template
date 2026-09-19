@@ -29,8 +29,10 @@
 - Test meaningful script behavior in import-safe modules, never by importing an
   executable main.ts. Run npm run check and npm run build after changes, plus relevant
   local tests. Exercise runtime behavior in Obsidian; typechecking cannot prove it.
-- Generated types in .template/types come from the plugin declaration graph. Never
-  patch them or restore handwritten EA stubs. Fix the source or generator and resync.
+- Generated types in .template/types and src/types/ea.d.ts come from the plugin
+  declaration graph. Never patch them or restore handwritten EA stubs. Put
+  repository-specific ambient declarations and type augmentations in
+  src/types/local.d.ts; fix the source or generator when the shared API is wrong.
 - Template updates must preserve src/scripts, src/sharedUtils, local guidance,
   repository identity, and custom package keys. Follow .template/README.md. Never
   resolve all updater conflicts by blindly accepting upstream files.

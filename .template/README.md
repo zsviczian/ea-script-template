@@ -48,7 +48,8 @@ Choose and test each script's minimum supported plugin version separately.
 | `.template/AGENTS.md`, `.template/README.md` | Shared agent guidance and update documentation |
 | `.template/types/`, `.template/api-source.json` | Generated EA declaration graph and provenance |
 | `.ai/excalidraw-automate/` | Generated agent skill, API reference, and script examples |
-| `src/types/ea.d.ts` | Script Engine globals derived from the generated declarations |
+| `src/types/ea.d.ts` | Managed Script Engine globals derived from generated declarations; do not edit |
+| `src/types/local.d.ts` | Your optional ambient declarations and type augmentations; never managed or overwritten |
 | `scripts/`, `tests/`, build/lint/TypeScript configs, `AUTHORING_GUIDE.md`, `CONTRIBUTING.md` | Only files explicitly listed in the manifest are managed; local edits are checked |
 | `package.json` | Managed scripts, dev dependencies, and engines merged by key; name, description, custom commands/dependencies, and other fields preserved |
 | `package-lock.json` | Yours; regenerate with npm install, never copy from the template |
